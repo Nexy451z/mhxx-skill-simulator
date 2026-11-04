@@ -1,5 +1,8 @@
 # MHXX スキルシミュレーター (Save Data Charm Direct Reader)
 
+**Web 版（GitHub Pages — インストール不要・ブラウザで今すぐ使えます）:**  
+https://nexy451z.github.io/mhxx-skill-simulator/
+
 Nintendo Switch / ニンテンドー3DS『モンスターハンターダブルクロス（MHXX）』および『Monster Hunter Generations Ultimate（MHGU）』の `system` セーブファイルから所持している護石（お守り）をブラウザ上で直接抽出・インポートしてスキルシミュレートができる、スタンドアロン Web スキルシミュレーターです。
 
 サーバーへのファイル送信は一切行わず、すべてブラウザ内（ローカル JavaScript / Web Worker）で完結します。`index.html` を直接ブラウザで開くだけで動作します。
