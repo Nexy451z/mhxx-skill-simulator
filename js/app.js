@@ -1578,14 +1578,47 @@
     };
   }
 
+  /* 個別固定モード (charmMode='single') の指すお守りを返す。
+     一覧から削除済み / charmId が空のときは null。
+     「固定していたお守りが無いのに single で検索され、結果の護石が『なし』だけに
+     なる」事故を防ぐため、buildPayload / 'charms' 通知 / 起動時で共有する。 */
+  function findSelectedCharm(charms, state) {
+    if (!state || state.charmMode !== 'single') return null;
+    if (state.charmId === null || state.charmId === undefined || state.charmId === '') return null;
+    var list = charms || [];
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].id) === String(state.charmId)) return list[i];
+    }
+    return null;
+  }
+
+  /* 指定 id のお守りが登録されているか。
+     一覧の複製を作らずに済むようストアの getById を優先する
+     （大量取込のたびに 'charms' 通知が走るため、ここは軽く保つ）。 */
+  function existsCharmId(id) {
+    if (id === null || id === undefined || id === '') return false;
+    var key = String(id);
+    var store = getStore();
+    if (store && typeof store.getById === 'function') {
+      try {
+        return !!store.getById(key);
+      } catch (err) {
+        /* ストア側で失敗したら一覧で確認する */
+      }
+    }
+    var list = charmApi.list();
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].id) === key) return true;
+    }
+    return false;
+  }
+
   function buildPayload(state) {
     var charms = charmApi.list();
-    var charm = null;
-    if (state.charmMode === 'single' && state.charmId) {
-      charm = charms.filter(function (item) {
-        return String(item.id) === String(state.charmId);
-      })[0] || null;
-    }
+    /* 固定対象が解決できないときは全検索として扱う（護石候補ゼロにしない）。
+       #charmSelect の表示と state がズレていても、エンジンには必ず
+       実在する護石の一覧が渡るようにする。 */
+    var charm = findSelectedCharm(charms, state);
 
     var selected = state.skills || [];
     return {
@@ -1594,8 +1627,8 @@
       gender: state.gender === 'female' ? 'female' : 'male',
       weaponSlots: Number(state.weaponSlots) || 0,
       weaponSlotSizes: state.weaponSlotSizes || null,
-      charmMode: state.charmMode === 'single' ? 'single' : 'all',
-      charmId: state.charmId,
+      charmMode: charm ? 'single' : 'all',
+      charmId: charm ? state.charmId : null,
       charm: charm,
       charms: charms,
       skills: selected.slice(),
@@ -1694,7 +1727,9 @@
       gender: payload.gender === 'female' ? 2 : payload.gender === 'both' ? 3 : 1,
       weaponSlots: Number(payload.weaponSlots) || 0,
       requiredSkills: requiredSkills,
-      charmMode: payload.charmMode === 'single' ? 'single' : 'all',
+      /* single を名乗るなら selectedCharm が必ず要る（無いと護石候補が
+         「なし」だけになり、全検索に切り替えたのに護石が使われないように見える） */
+      charmMode: (payload.charmMode === 'single' && payload.charm) ? 'single' : 'all',
       charms: (payload.charms || []).map(toEngineCharm),
       sortBy: payload.sort === 'slots' ? 'slots' : payload.sort === 'resist' ? 'resSum' : 'def',
       maxResults: Number(payload.maxResults || payload.limit) || 24,
@@ -1824,6 +1859,7 @@
 
   var searchToken = 0;
   var pendingSearch = false;
+  var pendingSearchTimer = null;
 
   function scheduleSearch(immediate) {
     if (immediate) {
@@ -1832,13 +1868,26 @@
     }
     if (pendingSearch) return;
     pendingSearch = true;
-    global.setTimeout(function () {
+    pendingSearchTimer = global.setTimeout(function () {
       pendingSearch = false;
+      pendingSearchTimer = null;
       runSearch();
     }, 140);
   }
 
+  /* 予約済みのデバウンス検索を取り消す。
+     refresh() で即時検索する直後に古い条件の検索が走り、結果を上書きするのを防ぐ。 */
+  function cancelScheduledSearch() {
+    if (!pendingSearch) return;
+    pendingSearch = false;
+    if (pendingSearchTimer) {
+      global.clearTimeout(pendingSearchTimer);
+      pendingSearchTimer = null;
+    }
+  }
+
   function runSearch() {
+    cancelScheduledSearch();
     var token = ++searchToken;
     state.status = 'searching';
     bus.emit('search:start', state);
@@ -1932,13 +1981,17 @@
     kit.toast('検索エンジンでエラーが発生しました。条件を変えて再試行してください', 'error');
   });
 
-  /* 固定していたお守りが削除されたら全検索モードへ戻す */
+  /* お守り一覧が変わったときの再検索。
+     一覧が変われば護石候補も変わるため、全検索モードでも必ず検索し直す
+     （再検索しないと「全検索 - N個」と表示されたまま古い護石なしの結果が
+     残り、お守りが使われていないように見える）。
+     固定していたお守りが削除された場合は全検索モードへ戻す。 */
   bus.on('charms', function () {
-    if (state.charmMode !== 'single' || !state.charmId) return;
-    var exists = charmApi.list().some(function (charm) {
-      return String(charm.id) === String(state.charmId);
-    });
-    if (!exists) patch({ charmMode: 'all', charmId: null, resultIndex: 0 });
+    if (state.charmMode === 'single' && !existsCharmId(state.charmId)) {
+      patch({ charmMode: 'all', charmId: null, resultIndex: 0 });
+      return;
+    }
+    scheduleSearch();
   });
 
   /* ======================================================================
@@ -1989,9 +2042,7 @@
 
     /* お守りが削除されていた場合は全検索モードへ戻す */
     var charms = charmApi.list();
-    if (state.charmMode === 'single' && !charms.some(function (charm) {
-      return String(charm.id) === String(state.charmId);
-    })) {
+    if (state.charmMode === 'single' && !findSelectedCharm(charms, state)) {
       state.charmMode = 'all';
       state.charmId = null;
     }

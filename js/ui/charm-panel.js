@@ -213,6 +213,24 @@
     }
   }
 
+  /* 指定 id のお守りが一覧にあるか */
+  function hasCharmId(list, id) {
+    if (id === null || id === undefined || id === '') return false;
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].id) === String(id)) return true;
+    }
+    return false;
+  }
+
+  /* 表示だけ「全検索」に落として検索条件が single のまま残ると、
+     護石が使われないのに全検索に見える。状態側も全検索へ戻す。 */
+  function resetCharmModeToAll() {
+    if (!MHXX.store) return;
+    var state = MHXX.store.get();
+    if (state.charmMode === 'all' && !state.charmId) return;
+    MHXX.store.patch({ charmMode: 'all', charmId: null, resultIndex: 0 });
+  }
+
   function renderSelect() {
     var list = charms();
     if (step2Count) step2Count.textContent = String(list.length);
@@ -235,7 +253,9 @@
     var targetVal = state.charmMode === 'single' && state.charmId ? String(state.charmId) : '__all__';
     select.value = targetVal;
     if (select.value !== targetVal) {
+      /* 指していたお守りが一覧から消えている（取込で置換 / 別画面で削除など） */
       select.value = '__all__';
+      resetCharmModeToAll();
     }
   }
 
@@ -494,11 +514,13 @@
     if (select) {
       select.addEventListener('change', function () {
         var value = select.value;
-        if (value === '__all__') {
+        /* 空値（選択肢が再描画で消えた等）や一覧に無い id では固定しない。
+           charmId が無いまま single になると護石候補ゼロで検索されてしまう。 */
+        if (!value || value === '__all__' || !hasCharmId(charms(), value)) {
           MHXX.store.patch({ charmMode: 'all', charmId: null, resultIndex: 0 });
-        } else {
-          MHXX.store.patch({ charmMode: 'single', charmId: value, resultIndex: 0 });
+          return;
         }
+        MHXX.store.patch({ charmMode: 'single', charmId: value, resultIndex: 0 });
       });
     }
 
@@ -595,7 +617,13 @@
     MHXX.bus.on('state', function (state) {
       if (select) {
         var expected = state.charmMode === 'single' && state.charmId ? String(state.charmId) : '__all__';
+        if (expected !== '__all__' && !hasCharmId(charms(), expected)) expected = '__all__';
         if (select.value !== expected) select.value = expected;
+        if (state.charmMode === 'single' && !hasCharmId(charms(), state.charmId)) {
+          /* 表示を全検索に落としただけでは検索条件が単一のお守りのまま残るため、
+             状態も全検索へ戻して同じ条件で再検索されるようにする */
+          resetCharmModeToAll();
+        }
       }
       renderDetail();
     });
