@@ -275,26 +275,28 @@ test('Worker 用ソース (buildWorkerSource) が自己完結して容量モデ�
 });
 
 /* ------------------------------------------------------------------ */
-/* 4. charmLimits: スロ2以上（2〜3穴）は slot2 テーブル                  */
+/* 4. charmLimits: slot1 = 第1スキル枠 / slot2 = 第2スキル枠（護石のスロ数ではない） */
 /* ------------------------------------------------------------------ */
-test('charmLimits: スロ0/1 は slot1、スロ2/3 は slot2 を参照する', function () {
+test('charmLimits: 第1スキル枠は slot1、第2スキル枠は slot2 を参照する', function () {
   global.window = global;
   global.MHXX = global.MHXX || {};
   require(path.join(__dirname, '..', 'js', 'data', 'sim-data.js'));
   const D = global.MHXX.data;
   const t = D.charmSkillTables[98];
   assert.ok(t && t.slot1 && t.slot2, 'rarity 98 のスキル上限テーブルが存在');
-  assert.strictEqual(D.charmLimits(98, 0), t.slot1, 'スロ0 → slot1');
-  assert.strictEqual(D.charmLimits(98, 1), t.slot1, 'スロ1 → slot1');
-  assert.strictEqual(D.charmLimits(98, 2), t.slot2, 'スロ2 → slot2');
-  assert.strictEqual(D.charmLimits(98, 3), t.slot2, 'スロ3 → slot2（slot===2 だと slot1 に落ちるバグ）');
+  assert.strictEqual(D.charmLimits(98, 1), t.slot1, '第1スキル枠 → slot1');
+  assert.strictEqual(D.charmLimits(98, 2), t.slot2, '第2スキル枠 → slot2');
   const t100 = D.charmSkillTables[100];
-  assert.strictEqual(D.charmLimitsOfKind(10, 3), t100.slot2, '天の護石(kind10=rarity100) スロ3 → slot2');
-  assert.strictEqual(D.charmLimitsOfKind(5, 3), D.charmSkillTables[99].slot2, '女王の護石(kind5=rarity99) スロ3 → slot2');
-  assert.strictEqual(D.charmLimitsOfKind(3, 2), t.slot2, '騎士の護石(kind3=rarity98) スロ2 → slot2');
-  assert.strictEqual(D.charmLimits(100, 3), t100.slot2, 'rarity 100 スロ3 → slot2');
-  /* 攻撃 は 1 スロ護石と 3 スロ護石で上限が違う（slot1 と slot2 が別物である確認） */
-  assert.notDeepStrictEqual(t.slot1['攻撃'], t.slot2['攻撃'], '攻撃の上限が slot1/slot2 で異なる');
+  assert.strictEqual(D.charmLimitsOfKind(10, 1), t100.slot1, '天の護石(kind10=rarity100) 第1枠 → slot1');
+  assert.strictEqual(D.charmLimitsOfKind(10, 2), t100.slot2, '天の護石(kind10=rarity100) 第2枠 → slot2');
+  assert.strictEqual(D.charmLimitsOfKind(5, 2), D.charmSkillTables[99].slot2, '女王の護石(kind5=rarity99) 第2枠 → slot2');
+  assert.strictEqual(D.charmLimitsOfKind(3, 2), t.slot2, '騎士の護石(kind3=rarity98) 第2枠 → slot2');
+  /* 攻撃 は rarity98 では第1枠(最大4)と第2枠(最大7)で上限が異なる */
+  assert.notDeepStrictEqual(t.slot1['攻撃'], t.slot2['攻撃'], '攻撃の上限が第1枠/第2枠で異なる');
+  /* 攻撃・達人は rarity100 の第1スキル枠には存在しない（第2枠専用） */
+  assert.strictEqual(t100.slot1['攻撃'], undefined, '攻撃は rarity100 の第1枠に存在しない');
+  assert.strictEqual(t100.slot1['達人'], undefined, '達人は rarity100 の第1枠に存在しない');
+  assert.ok(t100.slot2['攻撃'] && t100.slot2['達人'], '攻撃・達人は rarity100 の第2枠に存在する');
 });
 
 test('ランダム構成100件: 容量違反もポイント不一致も無い（決定的シード）', function () {

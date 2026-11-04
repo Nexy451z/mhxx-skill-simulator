@@ -27,15 +27,19 @@
      skillByName は同名オブジェクトへの参照、systemToSkills は系統名→発動スキル名。
 
    護石: skillSystemById[id] がセーブの +0x0C/+0x0D に入る系統名 (0-205)。
-         charmSkillTables[rarity][slot][系統名] = [下限, 上限]。
+         charmSkillTables[rarity][slot1|slot2][系統名] = [下限, 上限]。
+         slot1 = 第1スキル枠 / slot2 = 第2スキル枠の上限表（護石のスロ数ではない）。
+         件数は charmKinds.firstSkillCount / secondSkillCount、上限は
+         maxFirstSkill / maxSecondSkill に対応する（攻撃・達人・匠などは slot2 専用）。
          rarity は 97=兵士/闘士, 98=騎士/城塞, 99=女王/王/龍, 100=英雄/伝説/天。
    護石の kind 0 は「護石なし」。ゲーム内表記は charmKindNamesRaw[0] = "装備なし"。
 
    変換ヘルパー (すべて window.MHXX.data のメソッド):
      armorAt(i) / allArmors() / armorsOfPart(part) / decoAt(i) / allDecos()
      skillSystemName(id) / skillSystemId(name)
-     charmLimits(rarity, slot) / charmLimitsOfKind(kind, slot)
-     isValidCharmSkill(kind, slot, 系統名, points)
+     charmLimits(rarity, position) / charmLimitsOfKind(kind, position)
+       position は 1=第1スキル枠 / 2=第2スキル枠（護石のスロ数ではない）
+     isValidCharmSkill(kind, position, 系統名, points)
    ========================================================================== */
 
 window.MHXX = window.MHXX || {};
@@ -9169,20 +9173,20 @@ window.MHXX.data = {
     var m = window.MHXX.data.skillSystemToId;
     return Object.prototype.hasOwnProperty.call(m, name) ? m[name] : -1;
   },
-  charmLimits: function (rarity, slot) {
+  charmLimits: function (rarity, position) {
     var t = window.MHXX.data.charmSkillTables[rarity];
     if (!t) return null;
-    /* 護石のスキル上限テーブルは「スロ2以上（2〜3穴）」と「スロ0〜1」の 2 種。
-       3 スロ護石も slot2 側を使う（slot===2 だと 3 スロが slot1 に落ちる）。 */
-    return t[slot >= 2 ? "slot2" : "slot1"];
+    /* slot1 = 第1スキル枠 / slot2 = 第2スキル枠の上限表。
+       護石のスロ数（0〜3）ではなく、そのスキルが第1か第2かを渡す。 */
+    return t[Number(position) >= 2 ? "slot2" : "slot1"];
   },
-  charmLimitsOfKind: function (kindId, slot) {
+  charmLimitsOfKind: function (kindId, position) {
     var kinds = window.MHXX.data.charmKinds;
     if (!kinds[kindId] || !kinds[kindId].rarity) return null;
-    return window.MHXX.data.charmLimits(kinds[kindId].rarity, slot);
+    return window.MHXX.data.charmLimits(kinds[kindId].rarity, position);
   },
-  isValidCharmSkill: function (kindId, slot, systemName, points) {
-    var lim = window.MHXX.data.charmLimitsOfKind(kindId, slot);
+  isValidCharmSkill: function (kindId, position, systemName, points) {
+    var lim = window.MHXX.data.charmLimitsOfKind(kindId, position);
     if (!lim) return false;
     var r = lim[systemName];
     if (!r) return false;
