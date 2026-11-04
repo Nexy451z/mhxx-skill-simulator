@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MHXX スキルシミュレーター - UX & SVG Enhanced</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- インラインSVGスプライト定義（画面には非表示） -->
+<svg style="display: none;" aria-hidden="true">
+  <!-- 検索（虫眼鏡） -->
+  <symbol id="icon-search" viewBox="0 0 24 24">
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </symbol>
+  <!-- 剣士（大剣アイコン） -->
+  <symbol id="icon-sword" viewBox="0 0 24 24">
+    <polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline>
+    <line x1="13" y1="19" x2="19" y2="13"></line>
+    <line x1="16" y1="16" x2="20" y2="20"></line>
+    <line x1="19" y1="21" x2="21" y2="19"></line>
+  </symbol>
+  <!-- ガンナー（照準・ターゲットアイコン） -->
+  <symbol id="icon-gunner" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"></circle>
+    <circle cx="12" cy="12" r="3"></circle>
+    <line x1="12" y1="1" x2="12" y2="4"></line>
+    <line x1="12" y1="20" x2="12" y2="23"></line>
+    <line x1="1" y1="12" x2="4" y2="12"></line>
+    <line x1="20" y1="12" x2="23" y2="12"></line>
+  </symbol>
+  <!-- プラス（追加） -->
+  <symbol id="icon-plus" viewBox="0 0 24 24">
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </symbol>
+  <!-- チェック（選択済み） -->
+  <symbol id="icon-check" viewBox="0 0 24 24">
+    <polyline points="20 6 9 17 4 12"></polyline>
+  </symbol>
+  <!-- お守り（護石・勾玉/クリスタル） -->
+  <symbol id="icon-charm" viewBox="0 0 24 24">
+    <polygon points="12 2 19 8 16 22 8 22 5 8 12 2"></polygon>
+    <polyline points="5 8 12 13 19 8"></polyline>
+    <line x1="12" y1="13" x2="12" y2="22"></line>
+  </symbol>
+  <!-- 装飾品（珠） -->
+  <symbol id="icon-jewel" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8"></circle>
+    <path d="M9 9a3 3 0 0 1 4-1"></path>
+  </symbol>
+  <!-- 防御力（盾） -->
+  <symbol id="icon-shield" viewBox="0 0 24 24">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+  </symbol>
+  <!-- 部位：頭 -->
+  <symbol id="icon-head" viewBox="0 0 24 24">
+    <path d="M4 14a8 8 0 0 1 16 0v5l-4-2-4 2-4-2-4 2v-5z"></path>
+    <line x1="9" y1="13" x2="15" y2="13"></line>
+  </symbol>
+  <!-- 部位：胴 -->
+  <symbol id="icon-body" viewBox="0 0 24 24">
+    <path d="M6 4l4 2h4l4-2 3 5-3 3v8H6v-8L3 9l3-5z"></path>
+  </symbol>
+  <!-- 部位：腕 -->
+  <symbol id="icon-arm" viewBox="0 0 24 24">
+    <path d="M7 11V5a2 2 0 0 1 4 0v4m0 0V4a2 2 0 0 1 4 0v5m0 0V6a2 2 0 0 1 4 0v8a6 6 0 0 1-6 6H9a5 5 0 0 1-5-5v-4a2 2 0 0 1 3 0z"></path>
+  </symbol>
+  <!-- 部位：腰 -->
+  <symbol id="icon-waist" viewBox="0 0 24 24">
+    <rect x="3" y="6" width="18" height="5" rx="1"></rect>
+    <path d="M5 11l-1 8h6l2-5 2 5h6l-1-8"></path>
+  </symbol>
+  <!-- 部位：脚 -->
+  <symbol id="icon-leg" viewBox="0 0 24 24">
+    <path d="M8 3h7v9l4 4v4H6v-6l2-2V3z"></path>
+  </symbol>
+  <!-- スパーク・おすすめ -->
+  <symbol id="icon-spark" viewBox="0 0 24 24">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+  </symbol>
+  <!-- 追加：閉じる -->
+  <symbol id="icon-close" viewBox="0 0 24 24">
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </symbol>
+  <!-- 追加：削除（ゴミ箱） -->
+  <symbol id="icon-trash" viewBox="0 0 24 24">
+    <polyline points="3 6 5 6 21 6"></polyline>
+    <path d="M19 6l-1 14H6L5 6"></path>
+    <path d="M10 11v6M14 11v6"></path>
+    <path d="M9 6V4h6v2"></path>
+  </symbol>
+  <!-- 追加：アップロード -->
+  <symbol id="icon-upload" viewBox="0 0 24 24">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+    <polyline points="17 8 12 3 7 8"></polyline>
+    <line x1="12" y1="3" x2="12" y2="15"></line>
+  </symbol>
+  <!-- 追加：ダウンロード -->
+  <symbol id="icon-download" viewBox="0 0 24 24">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+    <polyline points="7 10 12 15 17 10"></polyline>
+    <line x1="12" y1="15" x2="12" y2="3"></line>
+  </symbol>
+  <!-- 追加：左矢印 -->
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24">
+    <polyline points="15 18 9 12 15 6"></polyline>
+  </symbol>
+  <!-- 追加：右矢印 -->
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24">
+    <polyline points="9 18 15 12 9 6"></polyline>
+  </symbol>
+</svg>
+
+<div class="app">
+  <header class="app-header">
+    <div class="app-brand">
+      <svg class="icon icon-lg"><use href="#icon-sword"/></svg>
+      <div>
+        <h1>MHXX スキルシミュレーター</h1>
+        <p>装備・お守り・スキルから最適な組み合わせをリアルタイム検索</p>
+      </div>
+    </div>
+    <div class="app-badges">
+      <span class="badge badge-soft" id="engineBadge">シミュレーター</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- 左側：直感コントローラー -->
+    <div class="column column-left">
+
+      <!-- STEP 1 -->
+      <div class="panel" id="step1Panel">
+        <div class="section-title">
+          <span class="title-left">
+            <svg class="icon icon-sm"><use href="#icon-sword"/></svg>
+            STEP 1: タイプ＆武器スロット
+          </span>
+          <span class="title-hint">タイプでスキル候補が切り替わります</span>
+        </div>
+
+        <div class="quick-bar">
+          <div class="btn-group" id="typeGroup" data-state="type" role="group" aria-label="タイプ">
+            <button class="active" type="button" data-value="blade" aria-pressed="true">
+              <svg class="icon"><use href="#icon-sword"/></svg> 剣士
+            </button>
+            <button type="button" data-value="gunner" aria-pressed="false">
+              <svg class="icon"><use href="#icon-gunner"/></svg> ガンナー
+            </button>
+          </div>
+          <div class="btn-group" id="slotGroup" data-state="weaponSlots" role="group" aria-label="武器スロット">
+            <button type="button" data-value="0">
+              スロ0 <span class="slot-dots"><span></span><span></span><span></span></span>
+            </button>
+            <button type="button" data-value="1">
+              1 <span class="slot-dots"><span class="filled"></span><span></span><span></span></span>
+            </button>
+            <button type="button" data-value="2">
+              2 <span class="slot-dots"><span class="filled"></span><span class="filled"></span><span></span></span>
+            </button>
+            <button class="active" type="button" data-value="3">
+              3 <span class="slot-dots"><span class="filled"></span><span class="filled"></span><span class="filled"></span></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="quick-bar secondary">
+          <span class="mini-label">
+            <svg class="icon icon-sm"><use href="#icon-check"/></svg> 性別
+          </span>
+          <div class="btn-group btn-group-sm" id="genderGroup" data-state="gender" role="group" aria-label="性別">
+            <button class="active" type="button" data-value="male" aria-pressed="true">男性</button>
+            <button type="button" data-value="female" aria-pressed="false">女性</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="panel" id="step2Panel">
+        <div class="section-title">
+          <span class="title-left">
+            <svg class="icon icon-sm"><use href="#icon-charm"/></svg>
+            STEP 2: お守りプリセット選択
+          </span>
+          <a href="#" class="action-link" id="openCharmModal">
+            <svg class="icon icon-sm"><use href="#icon-plus"/></svg> 新規登録 / 管理
+          </a>
+        </div>
+
+        <div class="input-wrapper">
+          <svg class="icon icon-left"><use href="#icon-charm"/></svg>
+          <select id="charmSelect" aria-label="お守りの検索モード">
+            <option value="__all__">手持ちのお守りをすべて対象にする (全検索)</option>
+          </select>
+        </div>
+
+        <div class="charm-detail" id="charmDetail"></div>
+
+        <div class="dropzone" id="saveDrop" tabindex="0" role="button" aria-label="セーブデータ system を読み込む">
+          <svg class="icon icon-lg dropzone-icon"><use href="#icon-upload"/></svg>
+          <div class="dropzone-text">
+            <strong>セーブデータ（<code>system</code>）読込</strong>
+            <span>クリックで選択、または <code>system</code> ファイルをドラッグ＆ドロップ</span>
+          </div>
+          <button type="button" class="btn btn-ghost" id="saveFileBtn">ファイルを選択</button>
+          <input type="file" id="saveFileInput" accept="*/*" hidden>
+        </div>
+
+        <div class="save-slots" id="saveSlots" hidden></div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="panel" id="step3Panel">
+        <div class="section-title">
+          <span class="title-left">
+            <svg class="icon icon-sm"><use href="#icon-check"/></svg>
+            STEP 3: スキルをタップしてON/OFF
+          </span>
+          <span class="title-right">
+            <span id="selectedCount" class="selected-count">0個 選択中</span>
+            <button type="button" class="link-btn" id="clearSkills" disabled>すべて解除</button>
+          </span>
+        </div>
+
+        <div class="input-wrapper">
+          <svg class="icon icon-left"><use href="#icon-search"/></svg>
+          <input type="text" id="skillSearch" autocomplete="off" spellcheck="false"
+                 placeholder="スキル名・系統名で絞り込み (例: 斬れ味, 見切り, 達人...)">
+        </div>
+
+        <div class="category-tabs" id="categoryTabs" role="tablist" aria-label="スキルカテゴリ"></div>
+
+        <div class="grid-meta">
+          <span id="skillCount" class="muted">0件</span>
+          <span class="muted">同系統のスキルは 1 つだけ選択できます</span>
+        </div>
+
+        <div class="selected-bar" id="selectedSkillBar"></div>
+
+        <div class="skill-chip-grid" id="skillGrid"></div>
+
+        <div class="empty-state" id="skillEmpty" hidden>
+          <svg class="icon icon-lg"><use href="#icon-search"/></svg>
+          <p>該当するスキルがありません</p>
+          <span class="muted">キーワードを短くするか、系統名（例: 達人・聴覚保護）でも検索できます</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右側：リアルタイム結果＆ポイント内訳マトリクス -->
+    <div class="column column-right">
+
+      <div class="panel" id="suggestPanel">
+        <div class="section-title">
+          <span class="title-left">
+            <svg class="icon icon-sm spark"><use href="#icon-spark"/></svg>
+            さらに追加できるスキル（ワンクリックで条件追加）
+          </span>
+          <span id="suggestCount" class="muted"></span>
+        </div>
+        <div class="skill-chip-grid" id="suggestGrid"></div>
+        <div class="empty-state small" id="suggestEmpty" hidden>
+          <span class="muted">空きスロット・余剰ポイントから追加できるスキルはありません</span>
+        </div>
+      </div>
+
+      <div class="panel" id="resultPanel">
+        <div class="section-title">
+          <span class="title-left">
+            <svg class="icon icon-sm"><use href="#icon-shield"/></svg>
+            検索結果 ＆ スキルポイント内訳
+          </span>
+          <span id="resultCount" class="muted">検索結果 0件</span>
+        </div>
+
+        <div class="result-toolbar">
+          <div class="pager" role="group" aria-label="検索結果の切り替え">
+            <button type="button" class="icon-btn" id="prevResult" aria-label="前の結果">
+              <svg class="icon icon-sm"><use href="#icon-chevron-left"/></svg>
+            </button>
+            <select id="resultSelect" class="pager-select" aria-label="検索結果の選択"></select>
+            <button type="button" class="icon-btn" id="nextResult" aria-label="次の結果">
+              <svg class="icon icon-sm"><use href="#icon-chevron-right"/></svg>
+            </button>
+          </div>
+          <label class="sort-wrap">
+            並び替え
+            <select id="sortSelect" aria-label="並び替え">
+              <option value="defense">防御力順</option>
+              <option value="slots">空きスロ順</option>
+              <option value="resist">耐性順</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="status-badges" id="resultBadges"></div>
+
+        <div class="matrix-scroll">
+          <table class="matrix-table" id="matrixTable"></table>
+        </div>
+
+        <div class="empty-state" id="resultEmpty" hidden>
+          <svg class="icon icon-lg"><use href="#icon-search"/></svg>
+          <p>条件に合う装備が見つかりませんでした</p>
+          <span class="muted">スキルを減らすか、武器スロット・お守りの条件を見直してください</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     お守りの登録・管理モーダル
+     ============================================================ -->
+<div class="modal-backdrop" id="charmModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="charmModalTitle">
+    <header class="modal-header">
+      <div class="modal-title" id="charmModalTitle">
+        <svg class="icon"><use href="#icon-charm"/></svg>
+        お守りの登録・管理
+      </div>
+      <button type="button" class="icon-btn" data-modal-close aria-label="閉じる">
+        <svg class="icon icon-sm"><use href="#icon-close"/></svg>
+      </button>
+    </header>
+
+    <nav class="modal-tabs" role="tablist">
+      <button type="button" class="modal-tab active" data-tab="add" role="tab" aria-selected="true">
+        <svg class="icon icon-sm"><use href="#icon-plus"/></svg> 手動で追加 / 編集
+      </button>
+      <button type="button" class="modal-tab" data-tab="list" role="tab" aria-selected="false">
+        <svg class="icon icon-sm"><use href="#icon-charm"/></svg> 登録済み一覧 <span class="tab-count" id="charmCount">0</span>
+      </button>
+      <button type="button" class="modal-tab" data-tab="text" role="tab" aria-selected="false">
+        <svg class="icon icon-sm"><use href="#icon-download"/></svg> テキスト入出力
+      </button>
+    </nav>
+
+    <div class="modal-body">
+      <!-- 手動で追加 -->
+      <section class="modal-pane active" data-pane="add">
+        <form id="charmForm" class="form-grid">
+          <input type="hidden" id="charmEditId" value="">
+          <label class="field">
+            <span class="field-label">護石の種類</span>
+            <select id="charmType" name="type"></select>
+          </label>
+          <label class="field">
+            <span class="field-label">スロット数</span>
+            <select id="charmSlots" name="slots">
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3" selected>3</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">第1スキル系統</span>
+            <select id="charmGroup1" name="group1"></select>
+          </label>
+          <label class="field">
+            <span class="field-label">ポイント</span>
+            <input type="number" id="charmPoints1" name="points1" min="-20" max="20" step="1" value="6">
+          </label>
+          <label class="field">
+            <span class="field-label">第2スキル系統</span>
+            <select id="charmGroup2" name="group2"></select>
+          </label>
+          <label class="field">
+            <span class="field-label">ポイント</span>
+            <input type="number" id="charmPoints2" name="points2" min="-20" max="20" step="1" value="0">
+          </label>
+          <p class="modal-hint" id="charmFormHint" style="grid-column: 1 / -1;">
+            スキルポイントはマイナス値（例: -10）も入力できます。スキルなしのスロット3お守りも登録できます。
+          </p>
+          <div class="form-actions">
+            <button type="button" class="btn" id="charmCancelEdit" hidden>キャンセル</button>
+            <button type="submit" class="btn btn-primary" id="charmSubmitBtn">
+              <svg class="icon icon-sm"><use href="#icon-plus"/></svg>
+              <span id="charmSubmitLabel">このお守りを登録</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- 登録済み一覧 -->
+      <section class="modal-pane" data-pane="list">
+        <div class="list-toolbar">
+          <div class="input-wrapper">
+            <svg class="icon icon-left"><use href="#icon-search"/></svg>
+            <input type="text" id="charmListSearch" placeholder="登録済みのお守りを検索..." autocomplete="off">
+          </div>
+          <button type="button" class="btn btn-danger-ghost" id="charmClearAll">
+            <svg class="icon icon-sm"><use href="#icon-trash"/></svg> 全削除
+          </button>
+        </div>
+        <div class="charm-list" id="charmList"></div>
+      </section>
+
+      <!-- テキスト入出力 -->
+      <section class="modal-pane" data-pane="text">
+        <p class="modal-hint">
+          1行に1個。形式は <code>護石種類,スキル系統,ポイント,スキル系統,ポイント,スロット</code>
+          （例: <code>龍の護石,痛撃,6,達人,10,3</code>）／ <code>痛撃+6 達人+10 スロ3</code> 形式にも対応。<br>
+          ポイントはマイナス値も可（例: <code>王の護石,攻撃,-5,,,2</code>）。
+          スキルなしは <code>天の護石,3</code>（スロ3）、<code>装備なし,0</code>（お守りなし）のように出力・取込できます。
+        </p>
+        <textarea id="charmText" class="charm-textarea" rows="10" spellcheck="false"
+                  placeholder="龍の護石,痛撃,6,達人,10,3&#10;光るお守り,聴覚保護,5,攻撃,3,2"></textarea>
+        <div class="form-actions">
+          <button type="button" class="btn" id="charmImportText">
+            <svg class="icon icon-sm"><use href="#icon-upload"/></svg> インポート
+          </button>
+          <button type="button" class="btn" id="charmExportText">
+            <svg class="icon icon-sm"><use href="#icon-download"/></svg> エクスポート
+          </button>
+          <button type="button" class="btn btn-primary" id="charmCopyText">クリップボードにコピー</button>
+        </div>
+      </section>
+    </div>
+
+    <footer class="modal-footer">
+      <span class="modal-footnote" id="charmModalStatus">登録したお守りは STEP 2 のセレクトに即時反映されます</span>
+      <button type="button" class="btn" data-modal-close>閉じる</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast-host" id="toastHost" aria-live="polite"></div>
+
+<!-- データ / コア（他サブエージェント担当。未読込でもフォールバックで動作する） -->
+<script defer src="js/data/sim-data.js"></script>
+<script defer src="js/core/save-parser.js"></script>
+<script defer src="js/core/charm-store.js"></script>
+<script defer src="js/core/search-engine.js"></script>
+<!-- UI modules -->
+<script defer src="js/ui/ui-kit.js"></script>
+<script defer src="js/ui/fallback-data.js"></script>
+<script defer src="js/ui/demo-engine.js"></script>
+<script defer src="js/ui/toast.js"></script>
+<script defer src="js/ui/button-group.js"></script>
+<script defer src="js/ui/skill-search.js"></script>
+<script defer src="js/ui/skill-chips.js"></script>
+<script defer src="js/ui/charm-panel.js"></script>
+<script defer src="js/ui/charm-modal.js"></script>
+<script defer src="js/ui/suggest-chips.js"></script>
+<script defer src="js/ui/result-view.js"></script>
+<script defer src="js/app.js"></script>
+
+</body>
+</html>

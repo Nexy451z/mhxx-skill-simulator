@@ -1,0 +1,26 @@
+# Raw reference/sample files and extracted game assets (never commit)
+サンプル/
+sample/
+romfs/
+extract/
+save_backups/
+*.py
+*.pyc
+__pycache__/
+*.bin
+*.gmd
+*.skt
+*.skd
+*.amskl
+*.amslt
+system
+system_backup
+
+# OS / Editor / Temp
+.DS_Store
+Thumbs.db
+.work/
+.review*/
+node_modules/
+dist/
+*.zip
