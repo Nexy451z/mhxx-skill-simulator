@@ -202,14 +202,14 @@
           </a>
         </div>
 
-        <!-- お守り逆引きモード（このお守りがあったら追加できるスキルを右カラムに表示） -->
+        <!-- 理論値お守り逆引きモード（未所持でも「このお守りがあれば追加できるスキル」を計算） -->
         <label class="switch-row" for="charmSuggestToggle">
           <span class="switch">
             <input type="checkbox" class="switch-input" id="charmSuggestToggle" aria-controls="charmSuggestPanel">
             <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
           </span>
-          <span class="switch-label">お守り逆引きモード</span>
-          <span class="switch-hint">このお守りがあったら追加できるスキル</span>
+          <span class="switch-label">理論値お守り逆引きモード</span>
+          <span class="switch-hint">未所持でも「あれば追加できるスキル」を理論値で判定</span>
         </label>
 
         <!-- お守り検索モード / 個別選択 -->
@@ -347,12 +347,12 @@
         </div>
       </div>
 
-      <!-- お守り逆引きモード: このお守りがあったら追加できるスキル -->
+      <!-- 理論値お守り逆引きモード: 未所持でも「このお守りがあれば追加できるスキル」 -->
       <div class="panel" id="charmSuggestPanel" role="region" aria-labelledby="charmSuggestTitle" hidden>
         <div class="section-title">
           <span class="title-left" id="charmSuggestTitle">
             <svg class="icon icon-sm spark"><use href="#icon-spark"/></svg>
-            このお守りがあったら追加できるスキル
+            理論値お守り逆引き（このお守りがあれば追加できるスキル）
           </span>
           <span id="charmSuggestCount" class="muted"></span>
         </div>
@@ -536,6 +536,7 @@
 <script defer src="js/data/sim-data.js"></script>
 <script defer src="js/core/save-parser.js"></script>
 <script defer src="js/core/charm-store.js"></script>
+<script defer src="js/core/charm-theory.js"></script>
 <script defer src="js/core/search-engine.js"></script>
 <!-- UI modules -->
 <script defer src="js/ui/ui-kit.js"></script>

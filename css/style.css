@@ -957,7 +957,7 @@ body {
 }
 
 /* ==========================================================================
-   お守り逆引きモード（トグルスイッチ ＆「このお守りで追加できるスキル」）
+   理論値お守り逆引きモード（トグルスイッチ ＆ 進捗・結果一覧）
    ========================================================================== */
 .switch-row {
   display: flex;
@@ -1038,16 +1038,80 @@ body {
   text-align: right;
 }
 
-/* 右カラム: お守りごとの「追加発動できるスキル」一覧 */
+/* 右カラム: 理論値お守り逆引き（進捗 ＆ 結果一覧） */
 .charm-suggest-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
-.cs-note {
-  margin: 0;
+
+/* 進捗バー ＆ キャンセル */
+.cs-progress {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sub);
+  padding: 8px 10px;
+}
+.cs-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cs-progress-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+.cs-progress-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.cs-cancel {
+  flex-shrink: 0;
+}
+.cs-progress-track {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.cs-progress-bar {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  transition: width 0.15s linear;
+}
+
+/* 並び順 ＆ 再計算 */
+.cs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cs-sort-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.cs-sort {
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sub);
+  color: var(--text);
   font-size: 12px;
 }
+
+/* 結果行 */
 .cs-rows {
   display: flex;
   flex-direction: column;
@@ -1064,7 +1128,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 .cs-charm-label {
   display: inline-flex;
@@ -1072,50 +1136,44 @@ body {
   gap: 6px;
   min-width: 0;
   font-size: 12px;
-  font-weight: 700;
   color: var(--text-sub);
 }
 .cs-charm-label .icon {
   color: var(--primary);
 }
-.cs-charm-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cs-score {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-}
-.cs-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.cs-chips .skill-chip {
-  background: #fff;
-  border-style: dashed;
-  min-height: 30px;
-  padding: 5px 9px;
-}
-.cs-chips .skill-chip:hover {
-  background: var(--primary-soft);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-.cs-chips .skill-chip:hover .chip-icon,
-.cs-chips .skill-chip:focus-visible .chip-icon {
-  color: var(--primary);
-}
 .cs-chip-group {
   font-weight: 700;
 }
-.cs-chips .chip-sub {
+.cs-skill-name {
+  font-weight: 700;
+  color: var(--primary);
+}
+.cs-row .chip-sub {
   color: var(--primary);
   background: var(--primary-soft);
   font-weight: 700;
+  white-space: nowrap;
+}
+.cs-example {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.cs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.cs-actions .btn {
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.cs-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
 }
 .cs-empty-hint {
   display: block;
@@ -1125,6 +1183,12 @@ body {
 @media (max-width: 600px) {
   .switch-hint {
     display: none;
+  }
+  .cs-progress-meta {
+    margin-left: 0;
+  }
+  .cs-example {
+    width: 100%;
   }
 }
 
