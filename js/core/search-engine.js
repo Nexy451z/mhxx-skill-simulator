@@ -46,6 +46,9 @@
      candidateOrder: 'score'（既定・スキル寄与優先）| 'def'（防御優先）
      seed         : ネセト一式 / 胴系統倍加のシード評価を行う  (既定 true)
      extraSuggestions : 追加スキル提案を生成する               (既定 true)
+     stopOnFirst  : 最初の解が見つかった時点で探索を打ち切る   (既定 false)
+                    「その条件を満たす解が 1 つでも存在するか」だけを
+                    高速に判定したい用途（理論値お守り逆引きなど）向け
 
    ── データ契約（MHXX.data あるいは setData で渡す）───────────────────
      {
@@ -936,6 +939,7 @@
         maxSlotUnits: maxSlotUnits,
         maxCharmSlotUnits: maxCharmSlotUnits,
         weaponSlotUnits: weaponSizes.reduce(function (a, b) { return a + b; }, 0),
+        stopOnFirst: opt.stopOnFirst === true,
         includeExtra: opt.extraSuggestions !== false,
         includeAllSystems: opt.includeAllSystems !== false,
         progressEvery: toInt(opt.progressEvery, 4000)
@@ -1664,6 +1668,10 @@
       }
 
       function evaluateCombo(parts, charm) {
+        /* 打ち切り済み（stopOnFirst / 上限到達）なら何もしない。
+           シード評価 (seedSpecial) は探索本体より先に走るため、ここでも
+           止めないと stopOnFirst でも複数件 push されてしまう。 */
+        if (finished) return;
         stats.leaves++;
         if (!parts[0] || !parts[1] || !parts[2] || !parts[3] || !parts[4]) return;
         /* 性別の最終ガード: 男専用と女専用が同一セットに混在する解は絶対に採らない */
@@ -1840,6 +1848,9 @@
         resultCount++;
         stats.accepted++;
         if (stats.accepted <= 30) stats.acceptedAt.push(stats.leaves);
+        /* stopOnFirst: 最初の解を確定した時点で探索を打ち切る
+           （「解が 1 つでも存在するか」だけを高速に判定する用途） */
+        if (ctx.stopOnFirst) { finished = true; return; }
         if (ctx.sortBy === 'def' && resultCount >= ctx.maxResults) {
           threshold = computeThreshold(results, ctx.maxResults);
         }
