@@ -202,6 +202,16 @@
           </a>
         </div>
 
+        <!-- お守り逆引きモード（このお守りがあったら追加できるスキルを右カラムに表示） -->
+        <label class="switch-row" for="charmSuggestToggle">
+          <span class="switch">
+            <input type="checkbox" class="switch-input" id="charmSuggestToggle" aria-controls="charmSuggestPanel">
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          </span>
+          <span class="switch-label">お守り逆引きモード</span>
+          <span class="switch-hint">このお守りがあったら追加できるスキル</span>
+        </label>
+
         <!-- お守り検索モード / 個別選択 -->
         <div class="input-wrapper">
           <svg class="icon icon-left"><use href="#icon-charm"/></svg>
@@ -335,6 +345,18 @@
         <div class="empty-state small" id="suggestEmpty" hidden>
           <span class="muted">現在の装備・空きスロットからさらに追加発動できるスキルはありません</span>
         </div>
+      </div>
+
+      <!-- お守り逆引きモード: このお守りがあったら追加できるスキル -->
+      <div class="panel" id="charmSuggestPanel" role="region" aria-labelledby="charmSuggestTitle" hidden>
+        <div class="section-title">
+          <span class="title-left" id="charmSuggestTitle">
+            <svg class="icon icon-sm spark"><use href="#icon-spark"/></svg>
+            このお守りがあったら追加できるスキル
+          </span>
+          <span id="charmSuggestCount" class="muted"></span>
+        </div>
+        <div class="charm-suggest-body" id="charmSuggestBody"></div>
       </div>
 
       <div class="panel" id="resultPanel">
@@ -527,6 +549,7 @@
 <script defer src="js/ui/charm-modal.js"></script>
 <script defer src="js/ui/suggest-chips.js"></script>
 <script defer src="js/ui/result-view.js"></script>
+<script defer src="js/ui/charm-suggest.js"></script>
 <script defer src="js/app.js"></script>
 </body>
 </html>
