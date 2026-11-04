@@ -82,15 +82,15 @@
     var limits = (MHXX.data && MHXX.data.charmSkillLimits) || null;
     if (limits && sysName && limits[sysName]) {
       var info = limits[sysName];
-      if (slotIndex === 1) {
-        var max1 = info.max1 != null ? info.max1 : (info.max2 != null ? info.max2 : 10);
-        var min1 = info.min1 != null ? info.min1 : 1;
-        return { min: min1, max: max1, def: max1 };
-      } else {
-        var max2 = info.max2 != null ? info.max2 : (info.max1 != null ? info.max1 : 13);
-        var min2 = info.min2 != null ? info.min2 : -10;
-        return { min: min2, max: max2, def: max2 };
-      }
+      /* 第1スキル・第2スキルの順番を逆に入力しても最大値が選べるよう、両枠の最大・最小を統合 */
+      var maxVal = Math.max(info.max1 != null ? info.max1 : -99, info.max2 != null ? info.max2 : -99);
+      if (maxVal < 1) maxVal = 10;
+      var minVal = Math.min(info.min1 != null ? info.min1 : 99, info.min2 != null ? info.min2 : 99);
+      if (minVal > 1) minVal = -10;
+      var defVal = slotIndex === 1
+        ? (info.max1 != null ? info.max1 : maxVal)
+        : (info.max2 != null ? info.max2 : maxVal);
+      return { min: minVal, max: maxVal, def: defVal };
     }
     return slotIndex === 1
       ? { min: -10, max: 10, def: 6 }

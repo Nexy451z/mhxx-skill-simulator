@@ -456,64 +456,48 @@
   }
 
   /* ------------------------------------------------------------------------
-     描画: マトリクス
+     描画: 横スクロール一切なしの「合計ポイント・発動スキル一覧 ＋ 部位別リスト」
      ---------------------------------------------------------------------- */
 
-  function cellHTML(key, part, group, view) {
-    var own = (part && part.points) ? toNum(part.points[group], 0) : 0;
+  function partSkillChipsHTML(key, part, view) {
+    if (!part) return '<span class="muted">-</span>';
+    var pts = part.points || {};
     var mult = toNum(view.multipliers[key], 1) || 1;
-    var finalPoints = !!(part && part.pointsAreFinal);
+    var finalPoints = !!part.pointsAreFinal;
+    var activated = activatedMap(view.activated);
 
-    /* ---- 正規化済みデータ（app.js 経由） ----
-       part.points は「胴系統倍加 ×N / ネセト護石 ×2 と装飾品を反映した後の確定値」。
-       ここへ更に ×N を重ねて描くと「+10 ×2」が 20 にも 40 にも見える二重掛け表示に
-       なるため、セルには確定値だけを表示し、倍率は装備名列のタグ・注記行・
-       ツールチップで説明する（合計行とセルの合計が一致する）。 */
-    if (finalPoints) {
-      if (!own) {
-        return '<td class="cell-empty"' + (part && part.isTorsoUp
-          ? ' title="胴系統倍加：胴部位のスキルポイントは胴のセルにまとめて加算されています"'
-          : '') + '>-</td>';
+    var keys = Object.keys(pts).filter(function (g) {
+      return toNum(pts[g], 0) !== 0;
+    });
+
+    /* 発動スキル系統を先に、その後ポイント絶対値の大きい順に並べる */
+    keys.sort(function (a, b) {
+      var actA = activated[a] ? 1 : 0;
+      var actB = activated[b] ? 1 : 0;
+      if (actA !== actB) return actB - actA;
+      return Math.abs(toNum(pts[b], 0)) - Math.abs(toNum(pts[a], 0));
+    });
+
+    if (!keys.length) {
+      if (part.isTorsoUp && key !== 'body') {
+        return '<span class="part-pt-chip is-torso">胴系統倍加（胴のスキルptを倍加）</span>';
       }
-
-      var appliedClasses = own < 0 ? 'cell-minus' : 'cell-plus';
-      var appliedTitle = group + ' ' + signed(own) + 'pt';
-      if (mult > 1) {
-        appliedClasses += ' cell-applied';
-        appliedTitle += '（' + (key === 'charm' ? 'ネセト護石倍加' : '胴系統倍加') + ' ×' + mult + ' 適用済み）';
-      }
-      return '<td class="' + appliedClasses + '" title="' + esc(appliedTitle) + '">' + signed(own) + '</td>';
+      return '<span class="muted">-</span>';
     }
 
-    /* ---- 生データ（素のポイント）向けの後方互換描画 ---- */
-    var torsoPt = 0;
-
-    if (part && part.isTorsoUp && key !== 'body') {
-      var bodyPart = view.parts.body;
-      torsoPt = bodyPart ? toNum(bodyPart.points[group], 0) : 0;
-    }
-
-    if (torsoPt) {
-      var torsoHTML = '<span class="torso-val">' + signed(torsoPt) + '</span>' +
-        '<small class="torso-tag" title="胴系統倍加により、胴部位の' + esc(group) + 'ポイントがこの部位に加算されます">倍加</small>';
-      if (own) torsoHTML = '<span class="torso-own">' + signed(own) + '</span> ' + torsoHTML;
-      return '<td class="cell-torso" title="胴系統倍加: 胴の ' + esc(group) + ' ' + signed(torsoPt) + 'pt を加算">' +
-        torsoHTML + '</td>';
-    }
-
-    if (!own) return '<td class="cell-empty">-</td>';
-
-    var classes = own < 0 ? 'cell-minus' : 'cell-plus';
-    var html = signed(own);
-    var title = esc(group + ' ' + signed(own) + 'pt');
-
-    if (mult > 1) {
-      classes += ' cell-bonus';
-      html += '<sup>×' + mult + '</sup>';
-      title = esc(group + ' ' + signed(own) + 'pt ×' + mult + ' = ' + signed(own * mult) + 'pt');
-    }
-
-    return '<td class="' + classes + '" title="' + title + '">' + html + '</td>';
+    return keys.map(function (group) {
+      var val = toNum(pts[group], 0);
+      var displayVal = (!finalPoints && mult > 1) ? val * mult : val;
+      var isAct = !!activated[group];
+      var cls = 'part-pt-chip';
+      if (displayVal < 0) cls += ' is-minus';
+      else if (isAct) cls += ' is-active';
+      var multTag = (mult > 1) ? '<small class="pt-mult-sub">(×' + mult + ')</small>' : '';
+      return '<span class="' + cls + '">' +
+        '<span class="pt-name">' + esc(group) + '</span>' +
+        '<b>' + signed(displayVal) + '</b>' + multTag +
+        '</span>';
+    }).join('');
   }
 
   function equipCellHTML(key, part, view) {
@@ -521,10 +505,10 @@
     var slots = (part && part.slots) || [];
     var mult = toNum(view.multipliers[key], 1) || 1;
 
-    var html = '<span class="equip-name">' + esc(name) + '</span>';
+    var html = '<div class="equip-main-line"><span class="equip-name">' + esc(name) + '</span>';
 
     if (part && part.isTorsoUp) {
-      html += '<span class="part-tag tag-torso" title="胴系統倍加：胴部位のスキルポイントをこの部位にも適用（合計には胴のセルでまとめて反映）">胴系統倍加</span>';
+      html += '<span class="part-tag tag-torso">胴系統倍加</span>';
     }
 
     if (slots.length) {
@@ -536,10 +520,7 @@
     if (mult > 1) {
       var reason = key === 'charm' ? '護石倍加' : (key === 'body' ? '胴系統倍加' : '倍加');
       if (key === 'charm' && view.isNeset) reason = 'ネセト護石倍加';
-      var tagTitle = reason + '：この部位のスキルポイントを ×' + mult + ' して合計に反映済み';
-      if (part && part.pointsAreFinal) tagTitle += '（セルの数値は反映後の値）';
-      html += '<span class="part-tag tag-mult" title="' + esc(tagTitle) + '">' +
-        esc(reason) + ' ×' + mult + '</span>';
+      html += '<span class="part-tag tag-mult">' + esc(reason) + ' ×' + mult + '</span>';
     }
 
     if (part && part.alternatives && part.alternatives.length) {
@@ -547,13 +528,14 @@
       html += '<button type="button" class="alt-badge" data-alt-part="' + esc(key) +
         '" aria-expanded="false" title="代替候補（' + esc(names) + '）">他' + part.alternatives.length + '件</button>' +
         '<div class="alt-list" hidden>' +
-          '<span class="alt-list-label">代替候補</span>' +
+          '<span class="alt-list-label">同性能の代替候補</span>' +
           '<ul>' + part.alternatives.map(function (altName) {
             return '<li>' + esc(altName) + '</li>';
           }).join('') + '</ul>' +
         '</div>';
     }
 
+    html += '</div>';
     return html;
   }
 
@@ -561,79 +543,81 @@
     var meta = PART_META[key] || { label: key, icon: 'body' };
     var part = view.parts[key] || null;
 
-    var cells = view.groups.map(function (group) {
-      return cellHTML(key, part, group, view);
-    }).join('');
-
     return '<tr data-part="' + esc(key) + '">' +
       '<td class="part-col"><div class="part-cell">' + icon(meta.icon, 'icon-sm') + esc(meta.label) + '</div></td>' +
-      '<td class="left">' + equipCellHTML(key, part, view) + '</td>' +
-      '<td class="deco-cell">' + decoHTML(part) + '</td>' +
-      cells + '</tr>';
+      '<td class="equip-col left">' + equipCellHTML(key, part, view) + '</td>' +
+      '<td class="deco-col">' + decoHTML(part) + '</td>' +
+      '<td class="skills-col left"><div class="part-pt-wrap">' + partSkillChipsHTML(key, part, view) + '</div></td>' +
+      '</tr>';
   }
 
   function noteRowHTML(view) {
     if (!view.isNeset && !(view.douCount > 0)) return '';
     var notes = [];
     if (view.isNeset) {
-      notes.push('ネセト一式ボーナス：護石のスキルポイント ×' + NESET_CHARM_MULT +
-        ' ／ 全スキル +' + NESET_BONUS_PT + 'pt（秘術）を合計に反映');
+      notes.push('ネセト一式ボーナス：護石（スキル＋装飾品）ポイント ×' + NESET_CHARM_MULT +
+        ' ／ 全スキル系統 +' + NESET_BONUS_PT + 'pt（秘術）が合計に反映されています');
     }
     if (view.douCount > 0) {
-      notes.push('胴系統倍加：胴部位のスキルポイントを ×' + (1 + view.douCount) +
-        ' して合計に反映（倍加部位 ' + view.douCount + ' 箇所）');
+      notes.push('胴系統倍加：胴部位（防具＋装飾品）のスキルポイントが ×' + (1 + view.douCount) +
+        ' として合計に反映されています（倍加部位 ' + view.douCount + ' 箇所）');
     }
-    return '<tr class="matrix-note-row"><td colspan="' + (view.groups.length + 3) + '">' +
+    return '<tr class="matrix-note-row"><td colspan="4">' +
       icon('spark', 'icon-sm spark') +
       '<span class="matrix-note-text">' + notes.map(function (note) { return esc(note); }).join('<br>') + '</span>' +
       '</td></tr>';
   }
 
-  function totalRowHTML(view) {
+  function renderTotalsSummaryHTML(view) {
     var totals = view.totals || {};
     var activated = activatedMap(view.activated);
+    var groups = view.groups || [];
 
-    var cells = view.groups.map(function (group) {
+    var activatedCards = [];
+    var subChips = [];
+
+    groups.forEach(function (group) {
       var total = toNum(totals[group], 0);
+      if (!total) return;
       var skill = activated[group];
-      var classes = 'total-cell';
-      if (skill) classes += ' is-activated';
-      if (total < 0) classes += ' is-minus';
-
-      var content = total ? String(total) : '-';
       if (skill) {
-        content += '<br><small class="activated-skill' + (toNum(skill.points, 0) < 0 ? ' is-minus' : '') + '">' +
-          '(' + esc(skill.name) + ')</small>';
+        var isMinus = toNum(skill.points, 0) < 0 || total < 0;
+        activatedCards.push(
+          '<div class="tot-skill-card' + (isMinus ? ' is-minus' : '') + '">' +
+            '<div class="tot-skill-main">' +
+              icon(isMinus ? 'close' : 'check', 'icon-sm') +
+              '<strong class="tot-skill-name">' + esc(skill.name) + '</strong>' +
+            '</div>' +
+            '<div class="tot-skill-meta">' +
+              '<span class="tot-sys-name">' + esc(group) + '</span>' +
+              '<span class="tot-sys-pt">' + signed(total) + 'pt</span>' +
+            '</div>' +
+          '</div>'
+        );
+      } else {
+        subChips.push(
+          '<span class="tot-sub-chip' + (total < 0 ? ' is-minus' : '') + '">' +
+            esc(group) + ' <b>' + signed(total) + '</b>' +
+          '</span>'
+        );
       }
+    });
 
-      /* 部位セルに現れない加算分（装飾品の非必須系統・ネセト秘術ボーナス）を明示する。
-         これが無いと「合計 -4 なのに全セル -」となり、内訳と合計が食い違って見える。 */
-      var cellSum = 0;
-      PART_ORDER.forEach(function (partKey) {
-        var part = view.parts[partKey];
-        if (part && part.points) cellSum += toNum(part.points[group], 0);
-      });
-      var unallocated = total - cellSum;
-      var secretOnly = view.isNeset && unallocated === NESET_BONUS_PT;
-      if (unallocated !== 0 && !secretOnly) {
-        var reason = view.isNeset && unallocated > NESET_BONUS_PT
-          ? '装飾品などの加算分（ネセト秘術 +' + NESET_BONUS_PT + ' を含む）'
-          : '装飾品など、部位別内訳の対象外で合計にのみ反映される分';
-        content += '<br><small class="total-diff" title="' + esc(reason) + '">装飾品' +
-          signed(unallocated) + '</small>';
-      }
-
-      return '<td class="' + classes + '">' + content + '</td>';
-    }).join('');
-
-    var notes = [];
-    if (view.isNeset) notes.push('ネセト: 護石×' + NESET_CHARM_MULT + ' / 秘術+' + NESET_BONUS_PT);
-    if (view.douCount > 0) notes.push('胴倍加×' + (1 + view.douCount));
-
-    var label = '<td colspan="3" class="total-label">合計ポイント / 発動スキル' +
-      (notes.length ? '<small class="total-note">' + esc(notes.join(' ・ ')) + '</small>' : '') + '</td>';
-
-    return '<tr class="total-row">' + label + cells + '</tr>';
+    var html = '<tr class="total-summary-row"><td colspan="4">' +
+      '<div class="tot-summary-box">' +
+        '<div class="tot-summary-header">' +
+          '<span class="tot-summary-title">' + icon('spark', 'icon-sm spark') + ' 発動スキル ＆ 合計ポイント</span>' +
+          '<span class="tot-summary-count">' + activatedCards.length + '個発動</span>' +
+        '</div>' +
+        (activatedCards.length
+          ? '<div class="tot-skill-grid">' + activatedCards.join('') + '</div>'
+          : '<div class="muted" style="padding:4px 0;">発動しているスキルはありません</div>') +
+        (subChips.length
+          ? '<div class="tot-sub-row"><span class="tot-sub-label">その他の系統ポイント:</span>' + subChips.join('') + '</div>'
+          : '') +
+      '</div>' +
+      '</td></tr>';
+    return html;
   }
 
   function renderMatrix(view) {
@@ -646,20 +630,17 @@
       return;
     }
 
-    var groups = view.groups;
     var head = '<thead><tr>' +
       '<th class="part-col">部位</th>' +
-      '<th class="equip-col">装備名</th>' +
-      '<th class="deco-col">装飾品</th>' +
-      groups.map(function (group) {
-        return '<th title="' + esc(group) + '">' + esc(group) + '</th>';
-      }).join('') +
+      '<th class="equip-col left">装備名 / スロット</th>' +
+      '<th class="deco-col left">装着装飾品</th>' +
+      '<th class="skills-col left">部位別スキルポイント内訳</th>' +
       '</tr></thead>';
 
     var body = '<tbody>' +
+      renderTotalsSummaryHTML(view) +
       PART_ORDER.map(function (key) { return partRowHTML(key, view); }).join('') +
       noteRowHTML(view) +
-      totalRowHTML(view) +
       '</tbody>';
 
     table.innerHTML = head + body;

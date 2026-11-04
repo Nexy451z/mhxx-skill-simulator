@@ -1080,29 +1080,29 @@ body {
   color: var(--danger);
 }
 
-/* マトリクス表 */
+/* マトリクス表（横スクロール不要の4列リスト＋発動スキルカード構造） */
 .matrix-scroll {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+  overflow-x: visible;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: var(--surface);
 }
 
 .matrix-table {
   width: 100%;
-  min-width: max-content;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: auto;
 }
 
 .matrix-table th,
 .matrix-table td {
   border-bottom: 1px solid var(--border);
   border-right: 1px solid var(--border);
-  padding: 7px 8px;
-  text-align: center;
+  padding: 8px 10px;
+  text-align: left;
   vertical-align: middle;
 }
 
@@ -1111,32 +1111,234 @@ body {
   border-right: none;
 }
 
+.matrix-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .matrix-table th {
   background: var(--surface-sub);
   font-size: 12px;
   font-weight: 700;
   color: var(--text-sub);
-  white-space: nowrap;
 }
 
 .matrix-table th.part-col,
 .matrix-table td.part-col {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background: var(--surface);
-  width: 68px;
-  min-width: 68px;
-}
-.matrix-table th.part-col {
+  width: 66px;
+  white-space: nowrap;
+  text-align: center;
   background: var(--surface-sub);
-  z-index: 3;
 }
 
-.matrix-table td.left {
-  text-align: left;
+.matrix-table td.equip-col {
+  width: 34%;
   font-weight: 600;
-  min-width: 150px;
+}
+
+.matrix-table td.deco-col {
+  width: 22%;
+}
+
+.matrix-table td.skills-col {
+  width: 44%;
+}
+
+.equip-main-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+/* 発動スキル＆合計ポイント サマリーボックス（横スクロールなし） */
+.total-summary-row td {
+  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 12px !important;
+  border-bottom: 2px solid #bae6fd;
+}
+
+.tot-summary-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tot-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tot-summary-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tot-summary-count {
+  font-size: 11px;
+  font-weight: 800;
+  background: var(--primary);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.tot-skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+  gap: 6px;
+}
+
+.tot-skill-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #7dd3fc;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  box-shadow: 0 1px 2px rgba(2, 132, 199, 0.06);
+}
+
+.tot-skill-card.is-minus {
+  border-color: #fecaca;
+  border-left-color: var(--danger);
+  background: #fff5f5;
+}
+
+.tot-skill-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primary);
+  min-width: 0;
+}
+
+.tot-skill-card.is-minus .tot-skill-main {
+  color: var(--danger);
+}
+
+.tot-skill-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tot-skill-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.tot-sys-name {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-sub);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.tot-sys-pt {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.tot-skill-card.is-minus .tot-sys-pt {
+  color: var(--danger);
+}
+
+.tot-sub-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding-top: 4px;
+  border-top: 1px dashed #bae6fd;
+}
+
+.tot-sub-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.tot-sub-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: var(--text-sub);
+}
+.tot-sub-chip b {
+  color: var(--text);
+}
+.tot-sub-chip.is-minus {
+  border-color: #fecaca;
+  color: var(--danger);
+}
+.tot-sub-chip.is-minus b {
+  color: var(--danger);
+}
+
+/* 部位別スキルポイントチップ（横スクロールなし・折返し表示） */
+.part-pt-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.part-pt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--surface-sub);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-sub);
+}
+.part-pt-chip.is-active {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: var(--text);
+}
+.part-pt-chip.is-active b {
+  color: var(--primary);
+  font-weight: 800;
+}
+.part-pt-chip.is-minus {
+  background: #fff5f5;
+  border-color: #fecaca;
+  color: var(--danger);
+}
+.part-pt-chip.is-torso {
+  background: #ede9fe;
+  border-color: #ddd6fe;
+  color: #5b21b6;
+  font-weight: 700;
+}
+.pt-mult-sub {
+  color: #b45309;
+  font-weight: 700;
 }
 
 .part-cell {
@@ -1699,5 +1901,31 @@ body {
   }
   .pager-select {
     flex: 1;
+  }
+  .tot-skill-grid {
+    grid-template-columns: 1fr;
+  }
+  .matrix-table thead {
+    display: none;
+  }
+  .matrix-table,
+  .matrix-table tbody,
+  .matrix-table tr,
+  .matrix-table td {
+    display: block;
+    width: 100% !important;
+  }
+  .matrix-table tr[data-part] {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .matrix-table tr[data-part] td {
+    border: none;
+    padding: 3px 0;
+    text-align: left;
+  }
+  .matrix-table td.part-col {
+    background: transparent;
+    width: auto !important;
   }
 }
