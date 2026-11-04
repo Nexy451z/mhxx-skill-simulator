@@ -497,7 +497,7 @@
     if (opener) {
       opener.addEventListener('click', function (event) {
         event.preventDefault();
-        open('add');
+        open('list');
       });
     }
 

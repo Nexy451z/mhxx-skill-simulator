@@ -365,11 +365,16 @@
 
   function initCharms() {
     var stored = readStored();
-    if (stored === null) return buildPresets();
+    /* 初期状態はお守り 0 個（空配列）から開始する。勝手なプリセットお守りは入れない */
+    if (stored === null) return [];
     var out = [];
     var usedIds = Object.create(null);
     for (var i = 0; i < stored.length; i++) {
       if (!stored[i]) continue;
+      /* 過去に自動投入された preset お守り（source === 'preset' または preset === true）は除外する */
+      if (stored[i].preset === true || stored[i].source === 'preset' || /^preset-\d+$/.test(String(stored[i].id || ''))) {
+        continue;
+      }
       var charm = normalizeCharm(stored[i], { source: stored[i].source || 'manual' });
       /* 旧バージョンが書き込んだ重複 ID も起動時に一意化する */
       if (usedIds[charm.id]) charm.id = nextId();

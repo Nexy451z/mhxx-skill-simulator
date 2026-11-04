@@ -765,6 +765,19 @@
     if (nextBtn) nextBtn.disabled = index >= results.length - 1;
 
     if (sortSelect) sortSelect.value = state.sort || 'defense';
+
+    var headerBadge = document.getElementById('headerResultBadge');
+    if (headerBadge) {
+      headerBadge.textContent = results.length ? ('検索結果 ' + results.length + '件') : '検索結果 0件';
+    }
+    var mbbSkill = document.getElementById('mbbSkillCount');
+    if (mbbSkill) {
+      mbbSkill.textContent = '選択スキル ' + ((state.skills || []).length) + '個';
+    }
+    var mbbRes = document.getElementById('mbbResultCount');
+    if (mbbRes) {
+      mbbRes.textContent = results.length ? ('結果 ' + results.length + '件 (防御' + (results[0].defense || '-') + ')') : '結果 0件';
+    }
   }
 
   /* ------------------------------------------------------------------------

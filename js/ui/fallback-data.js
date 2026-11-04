@@ -173,15 +173,8 @@
     '王の護石', '女王の護石', '龍の護石', '神秘の護石'
   ];
 
-  /* サンプルお守り（初回起動時のみ登録される） */
-  var sampleCharms = [
-    { id: 'sample-1', type: '龍の護石',   slots: 3, skills: [['痛撃', 6], ['達人', 10]] },
-    { id: 'sample-2', type: '神秘の護石', slots: 3, skills: [['斬れ味', 6], ['匠', 4]] },
-    { id: 'sample-3', type: '女王の護石', slots: 3, skills: [['通常弾強化', 6], ['達人', 9]] },
-    { id: 'sample-4', type: '光るお守り', slots: 2, skills: [['聴覚保護', 5], ['攻撃', 3]] },
-    { id: 'sample-5', type: '古びたお守り', slots: 1, skills: [['回避性能', 4], ['体術', 2]] },
-    { id: 'sample-6', type: '王の護石',   slots: 2, skills: [['攻撃', 6], ['達人', 4]] }
-  ];
+  /* 初期状態はお守り 0 個 */
+  var sampleCharms = [];
 
   MHXX.fallbackData = {
     categories: categories,
