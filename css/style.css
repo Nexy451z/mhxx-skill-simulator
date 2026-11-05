@@ -933,6 +933,32 @@ body {
   padding: 1px 5px;
   border-radius: 4px;
 }
+/* 剣士専用 / ガンナー専用スキルのバッジ（一覧はタイプを跨いで表示） */
+.skill-chip .chip-type {
+  font-size: 9px;
+  line-height: 1.4;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-sub);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.skill-chip .chip-type-blade {
+  color: #0b5cad;
+  border-color: #a9c7ea;
+  background: #eef5ff;
+}
+.skill-chip .chip-type-gunner {
+  color: #8a5a00;
+  border-color: #e0c080;
+  background: #fff7e6;
+}
+.skill-chip.selected .chip-type {
+  border-color: var(--primary-border);
+  color: var(--primary);
+  background: #fff;
+}
 .skill-chip.selected {
   background: var(--primary-soft);
   border-color: var(--primary);

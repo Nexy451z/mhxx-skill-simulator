@@ -1569,6 +1569,15 @@
       });
     }
 
+    /* 現在のタイプで使えないスキル（剣士専用 / ガンナー専用）は提案から外す */
+    if (state && (state.type === 'blade' || state.type === 'gunner')) {
+      suggestions = suggestions.filter(function (suggestion) {
+        var def = MHXX.skillIndex && MHXX.skillIndex.byName[suggestion.name];
+        if (!def || !def.weapon || def.weapon === 'both') return true;
+        return def.weapon === state.type;
+      });
+    }
+
     return {
       results: normalized,
       extraSuggestions: suggestions,
@@ -1971,7 +1980,7 @@
     });
     if (filtered.length !== before.length) {
       patch({ skills: filtered });
-      kit.toast('タイプに合わせて対象外のスキルを解除しました');
+      if (!info.silent) kit.toast('タイプに合わせて対象外のスキルを解除しました');
     }
   });
 

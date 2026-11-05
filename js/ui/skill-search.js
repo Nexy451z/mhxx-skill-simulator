@@ -30,9 +30,6 @@
     var searching = !!keyword;
 
     return all.filter(function (skill) {
-      if (state.type === 'blade' && skill.weapon === 'gunner') return false;
-      if (state.type === 'gunner' && skill.weapon === 'blade') return false;
-
       if (!searching && category !== 'all') {
         if (category === 'recommended') {
           if (!skill.recommended) return false;
@@ -48,6 +45,17 @@
     });
   }
 
+  /* 剣士専用 / ガンナー専用スキルのバッジ（タイプを跨いで一覧に表示するため） */
+  function typeBadge(skill) {
+    if (skill.weapon === 'blade') {
+      return '<small class="chip-type chip-type-blade">剣士専用</small>';
+    }
+    if (skill.weapon === 'gunner') {
+      return '<small class="chip-type chip-type-gunner">ガンナー専用</small>';
+    }
+    return '';
+  }
+
   function chipHTML(skill, isSelected, showSubGroup) {
     var sub = '';
     if (showSubGroup && skill.group && skill.group !== skill.name) {
@@ -56,12 +64,15 @@
     return '<div class="skill-chip' + (isSelected ? ' selected' : '') + '"' +
       ' data-name="' + kit.esc(skill.name) + '"' +
       ' data-group="' + kit.esc(skill.group) + '"' +
+      ' data-weapon="' + kit.esc(skill.weapon || 'both') + '"' +
       ' data-threshold="' + (skill.threshold || 10) + '"' +
-      ' title="' + kit.esc('系統: ' + skill.group + ' (必要 ' + (skill.threshold || 10) + 'pt)') + '"' +
+      ' title="' + kit.esc('系統: ' + skill.group + ' (必要 ' + (skill.threshold || 10) + 'pt)' +
+        (skill.weapon === 'blade' ? ' / 剣士専用' : skill.weapon === 'gunner' ? ' / ガンナー専用' : '')) + '"' +
       ' role="button" tabindex="0" aria-pressed="' + (isSelected ? 'true' : 'false') + '">' +
       kit.icon(isSelected ? 'check' : 'plus', 'chip-icon') +
       '<span>' + kit.esc(skill.name) + '</span>' +
       sub +
+      typeBadge(skill) +
       '</div>';
   }
 

@@ -19,8 +19,24 @@
     return {
       name: chip.getAttribute('data-name'),
       group: chip.getAttribute('data-group'),
+      weapon: chip.getAttribute('data-weapon') || 'both',
       threshold: Number(chip.getAttribute('data-threshold')) || 10
     };
+  }
+
+  /* 剣士専用 / ガンナー専用スキルを選んだとき、タイプを自動で合わせる。
+     （一覧はタイプを跨いで表示しているため、選択時に切り替える） */
+  function ensureTypeForSkill(skill) {
+    if (!skill || !skill.weapon || skill.weapon === 'both') return;
+    var state = MHXX.store.get();
+    if (state.type === skill.weapon) return;
+    var label = skill.weapon === 'gunner' ? 'ガンナー' : '剣士';
+    /* silent: 自動切替であることを示し、解除トーストの二重表示を避ける */
+    if (MHXX.bus) MHXX.bus.emit('ui:reconfigure', { key: 'type', value: skill.weapon, silent: true });
+    MHXX.store.patch({ type: skill.weapon, resultIndex: 0 });
+    if (kit.toast) {
+      kit.toast('「' + skill.name + '」は' + label + '専用のため、タイプを' + label + 'に切り替えました');
+    }
   }
 
   function toggleSkill(skill) {
@@ -28,15 +44,24 @@
     var state = MHXX.store.get();
     var current = state.skills || [];
     var existing = current.filter(function (item) { return item.name === skill.name; })[0];
-    var next;
 
     if (existing) {
-      next = current.filter(function (item) { return item !== existing; });
-    } else {
-      next = current
-        .filter(function (item) { return item.group !== skill.group; })
-        .concat([{ name: skill.name, group: skill.group, threshold: skill.threshold }]);
+      MHXX.store.patch({
+        skills: current.filter(function (item) { return item !== existing; }),
+        resultIndex: 0
+      });
+      MHXX.bus.emit('skills:sync');
+      return;
     }
+
+    /* タイプ違いのスキルは先にタイプを切り替える（対象外スキルは既存処理で解除される） */
+    ensureTypeForSkill(skill);
+    state = MHXX.store.get();
+    current = state.skills || [];
+
+    var next = current
+      .filter(function (item) { return item.group !== skill.group; })
+      .concat([{ name: skill.name, group: skill.group, threshold: skill.threshold }]);
 
     MHXX.store.patch({ skills: next, resultIndex: 0 });
     MHXX.bus.emit('skills:sync');
