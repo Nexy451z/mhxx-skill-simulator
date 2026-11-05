@@ -1866,6 +1866,153 @@
     status: 'idle'
   };
 
+  /* ======================================================================
+     5-1. 検索条件の永続化（localStorage）
+     ----------------------------------------------------------------------
+     ・タイプ / 性別 / 武器スロ / 選択スキル / 並び順 / カテゴリ / お守りモードを保存・復元する
+     ・お守り本体は charm-store（mhxx_sim_charms_v1）が別途永続化している
+     ・保存に失敗しても動作は継続する（プライベートモード等）
+     ====================================================================== */
+
+  var STATE_STORAGE_KEY = 'mhxx_sim_state_v1';
+  var STATE_VERSION = 1;
+  var stateSaveTimer = null;
+
+  function stateStorage() {
+    try {
+      var storage = global.localStorage;
+      if (!storage) return null;
+      var probe = '__mhxx_state_probe__';
+      storage.setItem(probe, '1');
+      storage.removeItem(probe);
+      return storage;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function readSavedState() {
+    var storage = stateStorage();
+    if (!storage) return null;
+    var raw = null;
+    try { raw = storage.getItem(STATE_STORAGE_KEY); } catch (err) { return null; }
+    if (!raw) return null;
+    try {
+      var parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object') ? parsed : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function restoreState() {
+    var saved = readSavedState();
+    if (!saved) return false;
+    /* 未知の（新しい）形式は復元しない */
+    var savedVersion = Number(saved.version);
+    if (isFinite(savedVersion) && savedVersion > STATE_VERSION) return false;
+
+    if (saved.type === 'blade' || saved.type === 'gunner') state.type = saved.type;
+    if (saved.gender === 'male' || saved.gender === 'female') state.gender = saved.gender;
+    var slots = Number(saved.weaponSlots);
+    if (isFinite(slots) && slots >= 0 && slots <= 3) state.weaponSlots = Math.round(slots);
+    if (Array.isArray(saved.weaponSlotSizes) && saved.weaponSlotSizes.length) {
+      var sizes = [];
+      var sizesOk = true;
+      for (var si = 0; si < saved.weaponSlotSizes.length && si < 3; si++) {
+        var size = Number(saved.weaponSlotSizes[si]);
+        if (!isFinite(size) || Math.round(size) !== size || size < 0 || size > 3) { sizesOk = false; break; }
+        sizes.push(size);
+      }
+      /* 不正な値は復元しない（UI から設定できない形式のため） */
+      state.weaponSlotSizes = (sizesOk && sizes.length) ? sizes : null;
+    }
+    if (saved.sort === 'defense' || saved.sort === 'slots' || saved.sort === 'resist') state.sort = saved.sort;
+    if (saved.category && (MHXX.categories || []).some(function (category) { return category.id === saved.category; })) {
+      state.category = saved.category;
+    }
+
+    /* 選択スキルは現行データに存在する系統名だけを復元する */
+    var index = MHXX.skillIndex || {};
+    var byName = index.byName || {};
+    var skills = [];
+    var seenGroups = {};
+    (Array.isArray(saved.skills) ? saved.skills : []).forEach(function (item) {
+      if (!item || typeof item.name !== 'string') return;
+      var def = byName[item.name];
+      if (!def) return;
+      /* 現在のタイプで使えないスキル（剣士専用 / ガンナー専用）は復元しない */
+      if (def.weapon && def.weapon !== 'both' && def.weapon !== state.type) return;
+      var group = def.group || item.group || item.name;
+      if (!group || seenGroups[group]) return;
+      seenGroups[group] = true;
+      skills.push({ name: def.name, group: group, threshold: def.threshold || 10 });
+    });
+    state.skills = skills;
+
+    /* 個別固定のお守りは、実在する ID のときだけ復元する */
+    var charms = charmApi.list();
+    var savedCharmId = saved.charmMode === 'single' && saved.charmId != null ? String(saved.charmId) : null;
+    var exists = false;
+    if (savedCharmId) {
+      for (var i = 0; i < charms.length; i++) {
+        if (String(charms[i].id) === savedCharmId) { exists = true; break; }
+      }
+    }
+    if (exists) {
+      state.charmMode = 'single';
+      state.charmId = savedCharmId;
+    } else {
+      state.charmMode = 'all';
+      state.charmId = null;
+    }
+
+    return true;
+  }
+
+  function persistState() {
+    var storage = stateStorage();
+    if (!storage) return;
+    var payload = {
+      version: STATE_VERSION,
+      type: state.type,
+      gender: state.gender,
+      weaponSlots: state.weaponSlots,
+      weaponSlotSizes: state.weaponSlotSizes,
+      sort: state.sort,
+      category: state.category,
+      skills: (state.skills || []).map(function (skill) {
+        return { name: skill.name, group: skill.group, threshold: skill.threshold };
+      }),
+      charmMode: state.charmMode === 'single' ? 'single' : 'all',
+      charmId: state.charmMode === 'single' ? state.charmId : null
+    };
+    try { storage.setItem(STATE_STORAGE_KEY, JSON.stringify(payload)); } catch (err) { /* 容量超過等は無視 */ }
+  }
+
+  function flushStateSave() {
+    if (stateSaveTimer) {
+      global.clearTimeout(stateSaveTimer);
+      stateSaveTimer = null;
+    }
+    persistState();
+  }
+
+  function scheduleStateSave() {
+    if (stateSaveTimer) return;
+    stateSaveTimer = global.setTimeout(function () {
+      stateSaveTimer = null;
+      persistState();
+    }, 250);
+  }
+
+  if (global.addEventListener) {
+    global.addEventListener('beforeunload', flushStateSave);
+    global.addEventListener('visibilitychange', function () {
+      if (global.document && global.document.visibilityState === 'hidden') flushStateSave();
+    });
+  }
+
   var searchToken = 0;
   var pendingSearch = false;
   var pendingSearchTimer = null;
@@ -1959,6 +2106,7 @@
     }
 
     bus.emit('state', state);
+    scheduleStateSave();
   }
 
   MHXX.store = {
@@ -2045,6 +2193,13 @@
       charmApi.bootstrap();
     } catch (err) {
       console.warn('[MHXX] charm migration failed', err);
+    }
+
+    /* 前回の検索条件（タイプ・性別・武器スロ・選択スキル・並び順・お守りモード）を復元 */
+    try {
+      restoreState();
+    } catch (err) {
+      console.warn('[MHXX] state restore failed', err);
     }
 
     initModules();
