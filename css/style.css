@@ -847,6 +847,16 @@ body {
 .selected-chip-remove:hover {
   background: rgba(255, 255, 255, 0.35);
 }
+/* マイナススキル（見切り-1 など）は選択中バーでも赤系で表示する */
+.selected-chip.is-minus {
+  background: var(--danger);
+}
+.selected-chip.is-minus .selected-chip-remove {
+  background: rgba(255, 255, 255, 0.24);
+}
+.selected-chip.is-minus .selected-chip-remove:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
 
 /* カテゴリタブ（2段ピル折返し） */
 .category-tabs {
@@ -967,6 +977,38 @@ body {
 }
 .skill-chip.selected .chip-icon {
   color: var(--primary);
+}
+/* マイナススキル（見切り-1 など）のバッジ。選択中でも赤系を保つ */
+.skill-chip .chip-type.chip-type-minus {
+  color: var(--danger);
+  border-color: #fecaca;
+  background: var(--danger-soft);
+  font-weight: 700;
+}
+.skill-chip.selected .chip-type.chip-type-minus {
+  color: var(--danger);
+  border-color: #fecaca;
+  background: #fff;
+}
+/* マイナススキルのチップは未選択時も赤系のアクセントを付ける */
+.skill-chip.is-minus {
+  border-color: #f3c2c2;
+}
+.skill-chip.is-minus .chip-icon {
+  color: var(--danger);
+}
+.skill-chip.is-minus:hover {
+  border-color: var(--danger);
+  background: #fff5f5;
+  color: var(--danger);
+}
+.skill-chip.is-minus.selected {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.skill-chip.is-minus.selected .chip-icon {
+  color: var(--danger);
 }
 .skill-chip.suggest {
   border-style: dashed;

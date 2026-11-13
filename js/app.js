@@ -35,6 +35,7 @@
     param: 'パラメータ変化',
     item: 'アイテム・クエスト',
     combo: '複合・二つ名',
+    minus: 'マイナス',
     all: 'すべて'
   };
 
@@ -46,6 +47,7 @@
     'item': 'item', 'アイテム・クエスト': 'item', 'アイテム': 'item',
     'quest': 'item', 'クエスト': 'item',
     'combo': 'combo', '複合・二つ名': 'combo', '複合スキル': 'combo', '複合': 'combo', '二つ名': 'combo',
+    'minus': 'minus', 'マイナス': 'minus', 'マイナススキル': 'minus', 'バッドスキル': 'minus',
     'recommended': 'recommended', 'よく使う/おすすめ': 'recommended', 'おすすめ': 'recommended',
     'all': 'all', 'すべて': 'all', '全て': 'all'
   };
@@ -59,6 +61,7 @@
     { id: 'param', label: 'パラメータ変化' },
     { id: 'item', label: 'アイテム・クエスト' },
     { id: 'combo', label: '複合・二つ名' },
+    { id: 'minus', label: 'マイナス' },
     { id: 'all', label: 'すべて' }
   ];
 
@@ -186,11 +189,14 @@
       var skill = normalizeSkill(raw);
       if (!skill || !skill.name || byName[skill.name]) return;
       if (!(skill.threshold > 0)) {
-        /* 必要ポイントがマイナスのバッドスキル（攻撃力DOWN / 見切り-1 など）は
-           STEP 3 のチップに出さない（誤タップ防止）。データ自体は保持する。 */
+        /* 必要ポイントがマイナスのバッドスキル（見切り-1 / 攻撃力DOWN など）。
+           一覧（all / byName）には含めて「マイナス」タブから検索条件に選べるようにする。
+           ただし byGroup には入れない（positive 側のしきい値解決・発動判定を壊さないため）。 */
         if (skill.threshold < 0) {
           skill.negative = true;
           negatives.push(skill);
+          byName[skill.name] = skill;
+          skills.push(skill);
         }
         return;
       }
@@ -228,9 +234,11 @@
       if (!charmTypes.length) charmTypes = ['龍の護石'];
     }
 
-    /* データにおすすめ情報が無い場合の保険（先頭の汎用スキルを数件おすすめ扱い） */
-    if (!skills.some(function (skill) { return skill.recommended; })) {
-      skills.slice(0, 40).forEach(function (skill) {
+    /* データにおすすめ情報が無い場合の保険（先頭の汎用スキルを数件おすすめ扱い）
+       マイナススキルは「おすすめ」に出さない（プラススキルだけを対象にする） */
+    var positiveSkills = skills.filter(function (skill) { return !skill.negative; });
+    if (!positiveSkills.some(function (skill) { return skill.recommended; })) {
+      positiveSkills.slice(0, 40).forEach(function (skill) {
         if (skill.threshold <= 20) skill.recommended = true;
       });
     }

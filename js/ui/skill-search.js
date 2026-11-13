@@ -30,11 +30,22 @@
     var searching = !!keyword;
 
     return all.filter(function (skill) {
-      if (!searching && category !== 'all') {
-        if (category === 'recommended') {
-          if (!skill.recommended) return false;
-        } else if (skill.category !== category) {
-          return false;
+      var negative = !!skill.negative;
+
+      /* マイナススキルの表示ルール:
+         ・検索中 / 「すべて」/「マイナス」タブでは表示する
+         ・「マイナス」タブではマイナスだけを表示する
+         ・それ以外のカテゴリタブでは表示しない */
+      if (!searching) {
+        if (category === 'minus') {
+          if (!negative) return false;
+        } else if (category !== 'all') {
+          if (negative) return false;
+          if (category === 'recommended') {
+            if (!skill.recommended) return false;
+          } else if (skill.category !== category) {
+            return false;
+          }
         }
       }
 
@@ -61,18 +72,28 @@
     if (showSubGroup && skill.group && skill.group !== skill.name) {
       sub = '<small class="chip-sub">' + kit.esc(skill.group) + '</small>';
     }
-    return '<div class="skill-chip' + (isSelected ? ' selected' : '') + '"' +
+
+    var negative = !!skill.negative;
+    var threshold = Number(skill.threshold) || 10;
+    /* マイナススキルは「合計が -Npt 以下」で発動するバッドスキルなので title も専用文にする */
+    var title = '系統: ' + skill.group + (negative
+      ? ' / マイナススキル（合計が ' + threshold + 'pt 以下で発動）'
+      : ' (必要 ' + threshold + 'pt)' +
+        (skill.weapon === 'blade' ? ' / 剣士専用' : skill.weapon === 'gunner' ? ' / ガンナー専用' : ''));
+
+    return '<div class="skill-chip' + (isSelected ? ' selected' : '') +
+      (negative ? ' is-minus' : '') + '"' +
       ' data-name="' + kit.esc(skill.name) + '"' +
       ' data-group="' + kit.esc(skill.group) + '"' +
       ' data-weapon="' + kit.esc(skill.weapon || 'both') + '"' +
-      ' data-threshold="' + (skill.threshold || 10) + '"' +
-      ' title="' + kit.esc('系統: ' + skill.group + ' (必要 ' + (skill.threshold || 10) + 'pt)' +
-        (skill.weapon === 'blade' ? ' / 剣士専用' : skill.weapon === 'gunner' ? ' / ガンナー専用' : '')) + '"' +
+      ' data-threshold="' + threshold + '"' +
+      ' title="' + kit.esc(title) + '"' +
       ' role="button" tabindex="0" aria-pressed="' + (isSelected ? 'true' : 'false') + '">' +
       kit.icon(isSelected ? 'check' : 'plus', 'chip-icon') +
       '<span>' + kit.esc(skill.name) + '</span>' +
       sub +
       typeBadge(skill) +
+      (negative ? '<small class="chip-type chip-type-minus">マイナス</small>' : '') +
       '</div>';
   }
 

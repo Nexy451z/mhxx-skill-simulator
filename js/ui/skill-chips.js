@@ -24,6 +24,15 @@
     };
   }
 
+  /* マイナススキル（しきい値が負）か。復元データはしきい値を持つので両方で判定する */
+  function isNegativeSkill(skill) {
+    if (!skill) return false;
+    if (Number(skill.threshold) < 0) return true;
+    var index = MHXX.skillIndex || {};
+    var def = index.byName ? index.byName[skill.name] : null;
+    return !!(def && def.negative);
+  }
+
   /* 剣士専用 / ガンナー専用スキルを選んだとき、タイプを自動で合わせる。
      （一覧はタイプを跨いで表示しているため、選択時に切り替える） */
   function ensureTypeForSkill(skill) {
@@ -86,7 +95,12 @@
     }
 
     bar.innerHTML = skills.map(function (skill) {
-      return '<span class="selected-chip" data-name="' + kit.esc(skill.name) + '">' +
+      var negative = isNegativeSkill(skill);
+      var title = negative
+        ? ' title="マイナススキル（合計が ' + (Number(skill.threshold) || 0) + 'pt 以下で発動）"'
+        : '';
+      return '<span class="selected-chip' + (negative ? ' is-minus' : '') + '"' +
+        ' data-name="' + kit.esc(skill.name) + '"' + title + '>' +
         kit.icon('check', 'chip-icon') +
         '<span class="selected-chip-name">' + kit.esc(skill.name) + '</span>' +
         '<button type="button" class="selected-chip-remove" data-remove="' + kit.esc(skill.name) +
