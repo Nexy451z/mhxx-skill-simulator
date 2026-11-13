@@ -34,6 +34,9 @@
      weaponSlots  : 0〜3（武器スロ N = 容量 N 穴のスロット 1 個。複数珠可）
      weaponSlotSizes : [3,3,3] のように明示指定も可（任意）
      requiredSkills : 発動させたいスキル名の配列（系統名でも可）
+                      マイナススキル名（例: '見切り-1'）を渡すと
+                      「そのマイナススキルが発動する」= 系統の合計が
+                      しきい値以下（見切り-1 → 達人 <= -10）の条件になる
      charmMode    : 'single' | 'all' | 'none'
      selectedCharm: charmMode='single' のときのお守り
      charms       : charmMode='all' のときのお守り配列
@@ -644,6 +647,8 @@
       var sysNames = [];
       var sysIndex = {};
       var reqMap = {};
+      /* マイナススキル要求（系統 -> しきい値。必ず負値）。reqMap とは別に管理する */
+      var negReqMap = {};
       var missingSkills = [];
       var i, k;
 
@@ -660,7 +665,17 @@
         if (!raw) continue;
         var def = resolveSkill(m, raw);
         if (def) {
-          if (def.points <= 0) continue;  /* マイナススキル要求は非対応（泣シミュ準拠） */
+          if (def.points < 0) {
+            /* マイナススキル（見切り-1 など）は「そのマイナススキルが発動する」
+               = その系統の合計がしきい値以下、という条件として扱う。
+               例: '見切り-1' (達人 -10) → 達人 <= -10 の構成を探す */
+            addSys(def.system);
+            if (!own(negReqMap, def.system) || negReqMap[def.system] > def.points) {
+              negReqMap[def.system] = def.points;
+            }
+            continue;
+          }
+          if (def.points === 0) continue;   /* 0pt のスキルは条件にならない */
           addSys(def.system);
           if (!own(reqMap, def.system) || reqMap[def.system] < def.points) {
             reqMap[def.system] = def.points;
@@ -680,7 +695,11 @@
       /* 装備・護石にしか出てこない系統も追跡対象に含めたい場合は
          requiredSkills を空にしない限り不要 */
       var reqArr = [];
-      for (i = 0; i < sysNames.length; i++) reqArr.push(reqMap[sysNames[i]] || 0);
+      var negReqArr = [];
+      for (i = 0; i < sysNames.length; i++) {
+        reqArr.push(reqMap[sysNames[i]] || 0);
+        negReqArr.push(own(negReqMap, sysNames[i]) ? negReqMap[sysNames[i]] : 0);
+      }
 
       /* --- 武器スロット --- */
       var weaponSlots = toInt(opt.weaponSlots, 0);
@@ -755,7 +774,7 @@
       var altByPart = [];
       for (i = 0; i < 5; i++) altByPart.push({});
       for (i = 0; i < 5; i++) {
-        perPart.push(compressCandidates(candidates[i], sysNames, reqArr, opt, equipType, altByPart[i]));
+        perPart.push(compressCandidates(candidates[i], sysNames, reqArr, negReqArr, opt, equipType, altByPart[i]));
       }
       for (i = 0; i < 5; i++) {
         var altGroup = altByPart[i];
@@ -766,7 +785,7 @@
       }
 
       /* --- 護石の枝刈り（all モード） --- */
-      var charmList = pruneCharms(charmCandidates, sysNames, reqArr, opt);
+      var charmList = pruneCharms(charmCandidates, sysNames, reqArr, negReqArr, opt);
       for (i = 0; i < charmList.length; i++) {
         var ch0 = charmList[i];
         ch0._sizes = ch0.slotSizes && ch0.slotSizes.length ? ch0.slotSizes : (ch0.slots ? [ch0.slots] : []);
@@ -907,6 +926,8 @@
         sysCount: sysCount,
         reqArr: reqArr,
         reqMap: reqMap,
+        negReqArr: negReqArr,
+        negReqMap: negReqMap,
         missingSkills: missingSkills,
         weaponSlots: weaponSlots,
         weaponSizes: weaponSizes,
@@ -950,10 +971,11 @@
        ・必須スキル系統pt + スロ数 が同一 → 防御最大の代表に統合
        ・胴系統倍加 / 秘術 / 護石強化 は圧縮キーに含め、必ず別候補として残す
        ・パレート下位互換（全pt以下 & スロ以下 & 防御以下）を枝刈り */
-    function compressCandidates(list, sysNames, reqArr, opt, equipType, altOut) {
+    function compressCandidates(list, sysNames, reqArr, negReqArr, opt, equipType, altOut) {
       if (!list.length) return [];
       var i, j, k;
       var sysCount = sysNames.length;
+      var negArr = negReqArr || [];
       var nesetNames = NESET_SETS[equipType === 2 ? 2 : 1];
       var best = {};
       var out = [];
@@ -989,7 +1011,9 @@
         var score = 0;
         for (j = 0; j < sysCount; j++) {
           var sv = pts[j];
-          if (sv > 0) score += Math.min(sv, reqArr[j] > 0 ? reqArr[j] : sv);
+          /* 負要求系統は「より負が良い」ので符号を反転して加点する */
+          if (negArr[j] < 0) score += -sv;
+          else if (sv > 0) score += Math.min(sv, reqArr[j] > 0 ? reqArr[j] : sv);
           else score += sv;
         }
         a._potential = (a.torsoUp && score < TORSO_UP_POTENTIAL_PT) ? TORSO_UP_POTENTIAL_PT : score;
@@ -1042,7 +1066,12 @@
           if (b._charmUp < cand._charmUp) continue;
           var allGe = true;
           for (k = 0; k < sysCount; k++) {
-            if (b._pts[k] < cand._pts[k]) { allGe = false; break; }
+            if (negArr[k] < 0) {
+              /* 負要求系統は「より負が良い」ので支配判定を反転する
+                 （正要求と負要求が同じ系統に同居する場合は両方を要求する） */
+              if (b._pts[k] > cand._pts[k]) { allGe = false; break; }
+              if (reqArr[k] > 0 && b._pts[k] < cand._pts[k]) { allGe = false; break; }
+            } else if (b._pts[k] < cand._pts[k]) { allGe = false; break; }
           }
           if (allGe) { dominated = true; break; }
         }
@@ -1071,9 +1100,10 @@
     }
 
     /* 護石のパレート枝刈り */
-    function pruneCharms(charms, sysNames, reqArr, opt) {
+    function pruneCharms(charms, sysNames, reqArr, negReqArr, opt) {
       if (!charms.length) return charms;
       var sysCount = sysNames.length;
+      var negArr = negReqArr || [];
       var i, j, k;
       var items = [];
       for (i = 0; i < charms.length; i++) {
@@ -1101,7 +1131,11 @@
       uniq.sort(function (x, y) {
         if (y.slots !== x.slots) return y.slots - x.slots;
         var sx = 0, sy = 0;
-        for (var q = 0; q < x.pts.length; q++) { sx += x.pts[q]; sy += y.pts[q]; }
+        for (var q = 0; q < x.pts.length; q++) {
+          /* 負要求系統は「より負が良い」ので符号を反転して評価する */
+          if (negArr[q] < 0) { sx += -x.pts[q]; sy += -y.pts[q]; }
+          else { sx += x.pts[q]; sy += y.pts[q]; }
+        }
         return sy - sx;
       });
       var kept = [];
@@ -1113,7 +1147,11 @@
           if (b.slots < cand.slots) continue;
           var allGe = true;
           for (k = 0; k < sysCount; k++) {
-            if (b.pts[k] < cand.pts[k]) { allGe = false; break; }
+            if (negArr[k] < 0) {
+              /* 負要求系統は「より負が良い」ので支配判定を反転する */
+              if (b.pts[k] > cand.pts[k]) { allGe = false; break; }
+              if (reqArr[k] > 0 && b.pts[k] < cand.pts[k]) { allGe = false; break; }
+            } else if (b.pts[k] < cand.pts[k]) { allGe = false; break; }
           }
           if (allGe) { dominated = true; break; }
         }
@@ -1171,10 +1209,20 @@
      *   slots   : [{size, part, mult}]
      *   戻り値  : { assignments:[{slot, deco}], used } | null
      * ------------------------------------------------------------------ */
-    function solveDecos(ctx, needArr, slots, slotCountIn) {
+    function solveDecos(ctx, needArr, slots, slotCountIn, opts) {
       var n = needArr.length;
       if (n === 0) return EMPTY_SOLUTION;
       var q, i;
+      /* avoidNegPos: マイナススキル要求の系統へ正のポイントを足す装飾品
+         （例: 達人 +1 の珠）を候補から外す。負要求を壊さないプランを優先する。 */
+      var avoidNegPos = !!(opts && opts.avoidNegPos);
+      var negSysIdx = null;
+      if (avoidNegPos) {
+        negSysIdx = [];
+        var negArr = ctx.negReqArr || [];
+        for (q = 0; q < n; q++) if (negArr[q] < 0) negSysIdx.push(q);
+        if (!negSysIdx.length) { avoidNegPos = false; negSysIdx = null; }
+      }
       var gapTotal = 0;
       for (q = 0; q < n; q++) if (needArr[q] > 0) gapTotal += needArr[q];
       if (gapTotal <= 0) return EMPTY_SOLUTION;
@@ -1209,6 +1257,7 @@
       for (i = 0; i < slotCount; i++) key += slots[i].size * 10 + slots[i].mult + ',';
       key += '|';
       for (i = 0; i < n; i++) if (needArr[i] > 0) key += i + ':' + needArr[i] + ',';
+      if (avoidNegPos) key += '|a';   /* モードが違うプランをキャッシュから拾わない */
       var memoStore = ctx.decoMemo;
       var cached = memoStore[key];
       if (cached !== undefined) return cached === 0 ? null : remapSolution(ctx, cached, slots);
@@ -1240,7 +1289,13 @@
       var decoPtsIdx = ctx.decoPtsIdx;
 
       function satisfied() {
-        for (var t = 0; t < n; t++) if (needArr[t] - cur[t] > 0) return false;
+        /* 追跡対象は「正要求の系統」(reqArr > 0) のみ。負要求系統は reqArr=0 なので
+           装飾品がマイナスを足して cur[t] < 0 になっても未充足扱いにならない。
+           正要求系統は needArr=0（防具で充足済み）でも、装飾品で cur が負に
+           なった分は補填が必要なので従来どおり判定する。 */
+        for (var t = 0; t < n; t++) {
+          if (ctx.reqArr[t] > 0 && needArr[t] - cur[t] > 0) return false;
+        }
         return true;
       }
 
@@ -1256,6 +1311,8 @@
       function pickSystem() {
         var bestIdx = -1, bestScore = -1;
         for (var t = 0; t < n; t++) {
+          /* 正要求の系統だけを埋める（負要求系統は reqArr=0 なので除外される） */
+          if (ctx.reqArr[t] <= 0) continue;
           var r = needArr[t] - cur[t];
           if (r <= 0) continue;
           /* サイズ3の装飾品が無い系統でも解けるよう、サイズ1〜3の最大値を使う
@@ -1274,6 +1331,7 @@
       function stateKey() {
         var s = '';
         for (var t = 0; t < n; t++) {
+          if (ctx.reqArr[t] <= 0) continue;   /* 負要求系統は探索状態に影響しない */
           var r = needArr[t] - cur[t];
           if (r > 0) s += t + ':' + r + ',';
         }
@@ -1296,6 +1354,15 @@
         for (var ci = 0; ci < cands.length; ci++) {
           var di = cands[ci];
           if (di < 0) continue;
+          /* 負要求系統にプラスを持つ装飾品は avoidNegPos モードでは使わない
+             （例: 達人 -10 が条件のときに 達人 +1 の珠を挿すと条件が壊れる） */
+          if (avoidNegPos) {
+            var harmful = false;
+            for (var nk = 0; nk < negSysIdx.length; nk++) {
+              if (decoPtsIdx[di][negSysIdx[nk]] > 0) { harmful = true; break; }
+            }
+            if (harmful) continue;
+          }
           var dSize = ctx.decoSize[di];
           var pts = decoPtsIdx[di][sysIdx];
           if (pts <= 0) continue;
@@ -1343,6 +1410,8 @@
     }
 
     var EMPTY_SOLUTION = { assignments: [], used: 0 };
+    /* 負要求系統を壊す装飾品を避けるモード（solveDecos の opts） */
+    var AVOID_NEG_POS = { avoidNegPos: true };
     var EMPTY5 = [0, 0, 0, 0, 0];
     /* 評価用の部位バッファは createSearchTask のスコープ内で確保する
        （モジュールスコープの暗黙変数参照による ReferenceError を排除）。 */
@@ -1371,6 +1440,8 @@
       var sysCount = ctx.sysCount;
       var sysNames = ctx.sysNames;
       var reqArr = ctx.reqArr;
+      /* マイナススキル要求（系統ごとのしきい値。負値のみ） */
+      var negReqArr = ctx.negReqArr || zeroArr(sysCount);
       /* 装飾品ポイント密度の上界（欠損していても 0.5 で必ず動く） */
       var ratioArr = ctx.decoRatioArr;
       if (!ratioArr) {
@@ -1413,6 +1484,39 @@
         var merged = zeroArr(sysCount);
         for (var q3 = 0; q3 < sysCount; q3++) merged[q3] = mp[q3] + suffixPts[sp + 1][q3];
         suffixPts[sp] = merged;
+      }
+
+      /* 負要求（マイナススキル）系統があるか（毎ノードの判定を軽くする） */
+      var hasNegReq = false;
+      for (var hq = 0; hq < sysCount; hq++) {
+        if (negReqArr[hq] < 0) { hasNegReq = true; break; }
+      }
+
+      /* 負要求（マイナススキル）系統のサフィックス最小値。
+         「残りの部位を最も負にしたときに見込める追加pt」を楽観側
+         （= より負 / 届きやすい側）で見積もる枝刈り用の上界。
+         胴は負値なら ×5（胴系統倍加の最大）、護石は ×2（ネセト一式）で見る。 */
+      var suffixMin = new Array(7);
+      suffixMin[6] = zeroArr(sysCount);
+      for (var sm = 5; sm >= 0; sm--) {
+        var mlist = sm < 5 ? lists[sm] : charms;
+        var partMin = zeroArr(sysCount);
+        for (var mi = 0; mi < mlist.length; mi++) {
+          var mobj = mlist[mi];
+          var mpts = sm < 5 ? mobj._pts : null;
+          for (var mq = 0; mq < sysCount; mq++) {
+            if (negReqArr[mq] >= 0) continue;
+            var mv = mpts ? mpts[mq] : num(mobj.skills[sysNames[mq]], 0);
+            if (mv < 0) {
+              if (sm === PART_BODY) mv *= 5;
+              else if (sm === 5) mv *= NESET_CHARM_MULT;
+            }
+            if (mi === 0 || mv < partMin[mq]) partMin[mq] = mv;
+          }
+        }
+        var mergedMin = zeroArr(sysCount);
+        for (var mq2 = 0; mq2 < sysCount; mq2++) mergedMin[mq2] = partMin[mq2] + suffixMin[sm + 1][mq2];
+        suffixMin[sm] = mergedMin;
       }
 
       var results = [];
@@ -1643,6 +1747,35 @@
           if (needFromDeco > units * ctx.maxDecoRatio + 1e-9) { feasible = false; stats.prunedPt++; }
         }
 
+        /* --- 負要求（マイナススキル）の枝刈り ---
+           残り部位を最も負にしても しきい値 に届かないなら枝を切る。
+           newPts は正要求用に胴を無条件で ×5 しており、負要求では
+           「正の値まで ×5」されて上界が緩む（= 取りこぼす）ため、
+           ここでは胴の負値だけ ×5 / 護石の負値だけ ×2 として積み直す。 */
+        if (feasible && hasNegReq) {
+          for (i = 0; i < sysCount; i++) {
+            if (negReqArr[i] >= 0) continue;
+            var negSum = 0;
+            for (var np = 0; np < part; np++) {
+              var nch = stack[np].chosen;
+              if (!nch || !nch._pts) continue;
+              var nv = nch._pts[i];
+              if (np === PART_BODY && nv < 0) nv *= 5;
+              negSum += nv;
+            }
+            var cvN = cand._pts ? cand._pts[i] : num(cand.skills[sysNames[i]], 0);
+            if (cvN < 0) {
+              if (part === PART_BODY) cvN *= 5;
+              else if (part === 5) cvN *= NESET_CHARM_MULT;
+            }
+            if (negSum + cvN + suffixMin[part + 1][i] > negReqArr[i]) {
+              feasible = false;
+              stats.prunedPt++;
+              break;
+            }
+          }
+        }
+
         if (!feasible) return true;
 
         /* 葉（護石まで選んだ）→ 判定 */
@@ -1730,35 +1863,46 @@
             needArr[i] = rem;
             if (rem > 0) deficit += rem;
           }
-          var candSolved = deficit <= 0 ? EMPTY_SOLUTION : solveDecos(ctx, needArr, ctx.slotPool, slotCount);
-          if (!candSolved) continue;
+          /* 負要求があるときは「負要求を壊す装飾品を避ける」プランを先に試し、
+             解が無い / 検証NG なら従来モードも試す（二段構え） */
+          var modeCount = (hasNegReq && deficit > 0) ? 2 : 1;
+          for (var mode = 0; mode < modeCount; mode++) {
+            var solveOpts = (mode === 0 && modeCount > 1) ? AVOID_NEG_POS : null;
+            var candSolved = deficit <= 0
+              ? EMPTY_SOLUTION
+              : solveDecos(ctx, needArr, ctx.slotPool, slotCount, solveOpts);
+            if (!candSolved) continue;
 
-          /* 実際の装飾品ポイントを集計 */
-          for (i = 0; i < sysCount; i++) decoTotal[i] = 0;
-          for (var ai0 = 0; ai0 < candSolved.assignments.length; ai0++) {
-            var asg0 = candSolved.assignments[ai0];
-            var ds0 = asg0.deco.systemSkills;
-            for (k in ds0) {
-              if (!own(ds0, k)) continue;
-              var si0 = ctx.sysIndex[k];
-              if (si0 === undefined) continue;
-              decoTotal[si0] += ds0[k] * asg0.slot.mult;
+            /* 実際の装飾品ポイントを集計 */
+            for (i = 0; i < sysCount; i++) decoTotal[i] = 0;
+            for (var ai0 = 0; ai0 < candSolved.assignments.length; ai0++) {
+              var asg0 = candSolved.assignments[ai0];
+              var ds0 = asg0.deco.systemSkills;
+              for (k in ds0) {
+                if (!own(ds0, k)) continue;
+                var si0 = ctx.sysIndex[k];
+                if (si0 === undefined) continue;
+                decoTotal[si0] += ds0[k] * asg0.slot.mult;
+              }
             }
+            var nextBonus = zeroArr(sysCount);
+            var nextTotals = new Array(sysCount);
+            var okAll = true;
+            for (i = 0; i < sysCount; i++) {
+              var combined = base[i] + decoTotal[i];
+              nextBonus[i] = (isNeset && combined >= NESET_BONUS_MIN_PT) ? NESET_BONUS_PT : 0;
+              nextTotals[i] = combined + nextBonus[i];
+              if (reqArr[i] > 0 && nextTotals[i] < reqArr[i]) okAll = false;
+              /* マイナススキル要求: 合計がしきい値（負値）以下であること */
+              if (negReqArr[i] < 0 && nextTotals[i] > negReqArr[i]) okAll = false;
+            }
+            if (!okAll) { stats.verifyFail++; continue; }
+            solved = candSolved;
+            totals = nextTotals;
+            bonus = nextBonus;
+            break;
           }
-          var nextBonus = zeroArr(sysCount);
-          var nextTotals = new Array(sysCount);
-          var okAll = true;
-          for (i = 0; i < sysCount; i++) {
-            var combined = base[i] + decoTotal[i];
-            nextBonus[i] = (isNeset && combined >= NESET_BONUS_MIN_PT) ? NESET_BONUS_PT : 0;
-            nextTotals[i] = combined + nextBonus[i];
-            if (reqArr[i] > 0 && nextTotals[i] < reqArr[i]) okAll = false;
-          }
-          if (!okAll) { stats.verifyFail++; continue; }
-          solved = candSolved;
-          totals = nextTotals;
-          bonus = nextBonus;
-          break;
+          if (solved) break;
         }
         if (!solved) { stats.decoFail++; return; }
 
@@ -2011,11 +2155,15 @@
       var matrix = [];
       for (i = 0; i < sysCount; i++) {
         var sysName = sysNames[i];
+        /* マイナススキル要求の系統は「合計 <= しきい値」で発動する */
+        var negNeed = ctx.negReqArr && ctx.negReqArr[i] < 0 ? ctx.negReqArr[i] : 0;
         var row = {
           system: sysName,
-          requiredPt: ctx.reqArr[i],
+          requiredPt: negNeed < 0 ? negNeed : ctx.reqArr[i],
           totalPt: info.totals[i],
-          activated: ctx.reqArr[i] > 0 ? info.totals[i] >= ctx.reqArr[i] : false,
+          activated: negNeed < 0
+            ? info.totals[i] <= negNeed
+            : (ctx.reqArr[i] > 0 ? info.totals[i] >= ctx.reqArr[i] : false),
           activatedSkills: [],
           parts: {},
           basePt: info.base[i],
@@ -2041,7 +2189,9 @@
         if (sys) {
           var act = pickActivatedSkills(sys, info.totals[i]);
           row.activatedSkills = act;
-          row.activated = act.length > 0 && (ctx.reqArr[i] > 0 ? info.totals[i] >= ctx.reqArr[i] : true);
+          row.activated = act.length > 0 && (negNeed < 0
+            ? info.totals[i] <= negNeed
+            : (ctx.reqArr[i] > 0 ? info.totals[i] >= ctx.reqArr[i] : true));
         }
         matrix.push(row);
       }
@@ -2394,6 +2544,18 @@
         }
         if (num(work[sysName], 0) < needed) return { ok: false, used: plan.used, freeLeft: 0 };
       }
+
+      /* マイナススキル要求（系統の合計 <= しきい値）を壊していないか。
+         珠の副作用で負要求系統が上がる提案は出さない。 */
+      var negArr = ctx.negReqArr;
+      if (negArr) {
+        for (i = 0; i < negArr.length; i++) {
+          if (!(negArr[i] < 0)) continue;
+          var negSys = ctx.sysNames[i];
+          if (num(work[negSys], 0) > negArr[i]) return { ok: false, used: plan.used, freeLeft: 0 };
+        }
+      }
+
       return { ok: true, used: plan.used, freeLeft: freeSlots.length - takenIdx.length };
     }
 
@@ -2441,6 +2603,26 @@
       return resolveSystem(ensureModel(), name);
     };
 
+    /* マイナススキル要求（合計 <= しきい値）のある系統名 */
+    function negativeSystemNames(ctx) {
+      var out = [];
+      var arr = ctx.negReqArr || [];
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] < 0) out.push(ctx.sysNames[i]);
+      }
+      return out;
+    }
+
+    /* マイナススキル要求のある系統名 -> しきい値（負値） */
+    function negativeRequiredPoints(ctx) {
+      var out = {};
+      var arr = ctx.negReqArr || [];
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] < 0) out[ctx.sysNames[i]] = arr[i];
+      }
+      return out;
+    }
+
     /* 検索前の準備情報（デバッグ・UI 表示用） */
     api.prepare = function (options) {
       var ctx = buildContext(options);
@@ -2453,6 +2635,8 @@
       return {
         systems: ctx.sysNames.slice(),
         requiredPoints: ctx.reqArr.slice(),
+        negativeRequiredSystems: negativeSystemNames(ctx),
+        negativeRequiredPoints: negativeRequiredPoints(ctx),
         missingSkills: ctx.missingSkills.slice(),
         candidateCounts: cands,
         candidateNames: candNames,
@@ -2640,9 +2824,11 @@
         equipType: ctx.equipType,
         gender: ctx.gender,
         weaponSlots: ctx.weaponSlots,
-        requiredSkills: Object.keys(ctx.reqMap),
+        requiredSkills: Object.keys(ctx.reqMap).concat(Object.keys(ctx.negReqMap || {})),
         requiredSystems: ctx.sysNames.slice(),
         requiredPoints: ctx.reqArr.slice(),
+        negativeRequiredSystems: negativeSystemNames(ctx),
+        negativeRequiredPoints: negativeRequiredPoints(ctx),
         missingSkills: ctx.missingSkills.slice(),
         elapsedMs: 0
       };
